@@ -1,0 +1,20 @@
+import streamlit as st
+from backend.database import create_table
+
+# Création de la base au démarrage
+create_table()
+
+st.set_page_config(page_title="Ma Bibliothèque", layout="wide")
+st.sidebar.title("Navigation")
+
+pages = {
+    "📚 Liste des livres": "pages/1_Liste_des_livres.py",
+    "🔎 Recherche": "pages/2_Recherche.py",
+    "➕ Ajouter un livre": "pages/3_Ajout_livre.py",
+    "✏️ Modifier / Supprimer": "pages/4_Modifier_supprimer.py",
+    "📥 Importer via CSV": "pages/5_Importer_CSV.py"
+}
+
+st.sidebar.markdown("## Pages")
+for title, file in pages.items():
+    st.sidebar.markdown(f"[{title}](./{file})")
