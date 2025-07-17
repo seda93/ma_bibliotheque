@@ -24,6 +24,10 @@ jobs:
 
       - name: ✅ Run Streamlit app test
         run: |
+<<<<<<< HEAD
           streamlit run Home.py --headless &
+=======
+          streamlit run Home.py --headless --server.headless true &
+>>>>>>> df92c18 (💾 Ajout ou modification locale avant rebase)
           sleep 10
           curl -I http://localhost:8501 || exit 1
