@@ -1,0 +1,20 @@
+# Environnement Python
+venv/
+__pycache__/
+*.pyc
+
+# Données locales
+data/livres.db
+data/images/
+
+# Streamlit
+.streamlit/
+.cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Système
+.DS_Store
+Thumbs.db
