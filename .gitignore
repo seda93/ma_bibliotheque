@@ -18,3 +18,7 @@ data/images/
 # Système
 .DS_Store
 Thumbs.db
+
+# Environnement Python
+venv/
+.venv/
