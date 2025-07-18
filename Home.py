@@ -1,10 +1,6 @@
 import streamlit as st
 from PIL import Image
 import os
-from backend.database import create_table
-
-# Création de la base au démarrage
-create_table()
 
 st.set_page_config(
     page_title="Ma Bibliothèque",
