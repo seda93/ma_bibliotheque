@@ -3,9 +3,10 @@ from PIL import Image
 import os
 
 st.set_page_config(
-    page_title="Ma Bibliothèque",
+    page_title="Ma bibliothèque pastel",
     page_icon="📚",
-    layout="wide"
+    layout="wide",
+    initial_sidebar_state="expanded"
 )
 
 # # Charger une image/logo si tu en as une

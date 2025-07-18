@@ -2,3 +2,10 @@
 headless = true
 enableCORS = false
 port = 8501
+
+[theme]
+primaryColor = "#F7A9A8"
+backgroundColor = "#E6F0FA"
+secondaryBackgroundColor = "#FFE5B4"
+textColor = "#2C2C2C"
+font = "sans serif"

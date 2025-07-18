@@ -20,3 +20,5 @@ __pycache__/
 # Système
 .DS_Store
 Thumbs.db
+
+*.zip

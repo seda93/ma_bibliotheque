@@ -1,3 +1,20 @@
+st.markdown("""
+<style>
+body {
+    background-color: #fdf6f0;
+}
+section.main > div {
+    background-color: #ffffffdd;
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 0px 0px 10px rgba(200, 200, 200, 0.3);
+}
+h1, h2, h3 {
+    color: #6a5acd;
+}
+</style>
+""", unsafe_allow_html=True)
+
 import streamlit as st
 import pandas as pd
 from PIL import Image

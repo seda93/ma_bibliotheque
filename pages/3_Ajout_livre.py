@@ -1,3 +1,20 @@
+st.markdown("""
+<style>
+body {
+    background-color: #fdf6f0;
+}
+section.main > div {
+    background-color: #ffffffdd;
+    border-radius: 1rem;
+    padding: 1rem;
+    box-shadow: 0px 0px 10px rgba(200, 200, 200, 0.3);
+}
+h1, h2, h3 {
+    color: #6a5acd;
+}
+</style>
+""", unsafe_allow_html=True)
+
 import streamlit as st
 from backend.isbn_lookup import fetch_book_info
 from backend.database import get_sqlalchemy_engine
@@ -79,3 +96,4 @@ with st.form("ajout_form"):
                 st.session_state["infos"] = {}
             except Exception as e:
                 st.error(f"Erreur lors de l'ajout : {e}")
+                
