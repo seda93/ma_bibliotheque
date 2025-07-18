@@ -1,12 +1,13 @@
 import streamlit as st
 from backend.supabase_client import upload_image_to_bucket
-from backend.database import engine
+from backend.database import get_sqlalchemy_engine
 from sqlalchemy import text
 from PIL import Image
 import os
 
 st.title("✏️ Modifier un livre")
 
+engine = get_sqlalchemy_engine()
 
 def get_livres_options():
     with engine.connect() as conn:
