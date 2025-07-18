@@ -1,4 +1,5 @@
-from supabase import create_client
+from supabase import create_client, Client
+
 import streamlit as st
 
 # Utilisation directe de st.secrets (pour Streamlit Cloud ou secrets.toml local)
