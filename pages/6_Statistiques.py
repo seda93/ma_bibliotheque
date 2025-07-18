@@ -2,56 +2,64 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from sqlalchemy import text
-from backend.database import get_sqlalchemy_engine
+from backend.database import engine
 
+# --- STYLES GLOBAUX PASTEL ---
 st.markdown("""
-<style>
-body {
-    background-color: #fdf6f0;
-}
-section.main > div {
-    background-color: #ffffffdd;
-    border-radius: 1rem;
-    padding: 1rem;
-    box-shadow: 0px 0px 10px rgba(200, 200, 200, 0.3);
-}
-h1, h2, h3 {
-    color: #6a5acd;
-}
-</style>
+    <style>
+        html, body, [class*="css"] {
+            font-family: 'Arial', sans-serif;
+            background-color: #fdf6f0;
+            color: #333;
+        }
+        h1, h2 {
+            color: #6c5b7b;
+        }
+        .block-container {
+            padding: 2rem;
+        }
+        .stMarkdown > div {
+            text-align: center;
+        }
+    </style>
 """, unsafe_allow_html=True)
 
-engine = get_sqlalchemy_engine()
 st.title("📊 Statistiques de la bibliothèque")
 
-with engine.connect() as conn:
-    df = pd.read_sql("SELECT * FROM livres", conn)
+def fetch_data():
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT * FROM livres"))
+        return pd.DataFrame(result.fetchall(), columns=result.keys())
+
+df = fetch_data()
 
 if df.empty:
-    st.info("Aucun livre à afficher.")
-else:
-    col1, col2 = st.columns(2)
+    st.warning("Aucune donnée disponible.")
+    st.stop()
 
-    with col1:
-        st.subheader("📚 Livres par genre")
-        genre_count = df['genre'].value_counts()
-        fig, ax = plt.subplots()
-        genre_count.plot(kind='bar', ax=ax)
-        ax.set_ylabel("Nombre")
-        st.pyplot(fig)
+# --- LANGUE ---
+st.subheader("🌍 Répartition par langue")
+langue_counts = df['langue'].value_counts()
+fig1, ax1 = plt.subplots()
+ax1.pie(langue_counts, labels=langue_counts.index, autopct='%1.1f%%', startangle=90, colors=plt.cm.Pastel1.colors)
+ax1.axis('equal')
+st.pyplot(fig1)
 
-    with col2:
-        st.subheader("🌍 Livres par langue")
-        langue_count = df['langue'].value_counts()
-        fig, ax = plt.subplots()
-        langue_count.plot(kind='pie', autopct='%1.1f%%', ax=ax)
-        ax.set_ylabel("")
-        st.pyplot(fig)
+# --- GENRE ---
+st.subheader("📚 Répartition par genre")
+genre_counts = df['genre'].value_counts()
+fig2, ax2 = plt.subplots()
+ax2.bar(genre_counts.index, genre_counts.values, color=plt.cm.Pastel2.colors)
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+st.pyplot(fig2)
 
-    st.subheader("📅 Répartition par année")
-    annee_count = df['annee'].value_counts().sort_index()
-    fig, ax = plt.subplots()
-    annee_count.plot(kind='bar', ax=ax)
-    ax.set_xlabel("Année")
-    ax.set_ylabel("Nombre de livres")
-    st.pyplot(fig)
+# --- ANNÉE ---
+st.subheader("📅 Répartition par année")
+df["annee"] = pd.to_numeric(df["annee"], errors="coerce")
+year_counts = df["annee"].dropna().astype(int).value_counts().sort_index()
+fig3, ax3 = plt.subplots()
+ax3.plot(year_counts.index, year_counts.values, marker='o', linestyle='-', color='#a3c9a8')
+ax3.set_xlabel("Année")
+ax3.set_ylabel("Nombre de livres")
+st.pyplot(fig3)
