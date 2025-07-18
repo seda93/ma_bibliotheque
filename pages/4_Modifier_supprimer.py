@@ -5,6 +5,7 @@ from sqlalchemy import text
 from PIL import Image
 import os
 
+# --- STYLES GLOBAUX PASTEL ---
 st.markdown("""
 <style>
 body {
@@ -22,7 +23,7 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("✏️ Modifier un livre")
+st.title("✏️ Modifier ou supprimer un livre")
 
 engine = get_sqlalchemy_engine()
 
@@ -56,6 +57,11 @@ def update_livre(livre_id, data):
             WHERE id = :id
         """), {**data, "id": livre_id})
 
+def supprimer_livre(livre_id):
+    with engine.connect() as conn:
+        conn.execute(text("DELETE FROM livres WHERE id = :id"), {"id": livre_id})
+
+# --- SÉLECTION DU LIVRE ---
 livres = get_livres_options()
 if not livres:
     st.info("Aucun livre disponible.")
@@ -64,6 +70,10 @@ if not livres:
 selected_label = st.selectbox("Choisissez un livre à modifier :", [l["label"] for l in livres])
 livre_id = [l["id"] for l in livres if l["label"] == selected_label][0]
 livre = get_livre_par_id(livre_id)
+
+# --- ÉTAT DE SUPPRESSION ---
+if "supprimer_en_cours" not in st.session_state:
+    st.session_state.supprimer_en_cours = None
 
 if livre:
     with st.form("modifier_livre"):
@@ -105,7 +115,12 @@ if livre:
             except Exception as e:
                 st.error(f"Erreur envoi image : {e}")
 
-        submitted = st.form_submit_button("💾 Enregistrer les modifications")
+        col1, col2 = st.columns(2)
+        with col1:
+            submitted = st.form_submit_button("💾 Enregistrer les modifications")
+        with col2:
+            demande_suppression = st.form_submit_button("🗑️ Supprimer ce livre")
+
         if submitted:
             update_livre(livre_id, {
                 "titre": titre,
@@ -123,3 +138,18 @@ if livre:
             })
             st.success("✅ Livre modifié avec succès.")
             st.rerun()
+
+        if demande_suppression:
+            st.session_state.supprimer_en_cours = livre_id
+            st.warning(f"⚠️ Voulez-vous vraiment supprimer **{livre['titre']}** ?")
+            col_conf, col_annul = st.columns(2)
+            with col_conf:
+                if st.button("✅ Oui, supprimer définitivement"):
+                    supprimer_livre(livre_id)
+                    st.success("🗑️ Livre supprimé.")
+                    st.session_state.supprimer_en_cours = None
+                    st.rerun()
+            with col_annul:
+                if st.button("❌ Annuler"):
+                    st.session_state.supprimer_en_cours = None
+                    st.info("Suppression annulée.")
