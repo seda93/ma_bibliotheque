@@ -1,6 +1,7 @@
 from supabase import create_client
 import os
 from dotenv import load_dotenv
+import streamlit as st
 
 load_dotenv()
 
@@ -14,25 +15,29 @@ def upload_image_to_bucket(file, image_name):
         return None
 
     try:
-        # Supprimer l'image existante si elle est déjà dans le bucket
-        supabase.storage.from_("livres").remove(image_name)
+        # Supprimer l'image si elle existe déjà
+        try:
+            supabase.storage.from_("livres").remove(image_name)
+        except Exception as e:
+            print("Aucune image à supprimer ou erreur ignorée :", e)
 
-        # Upload de l'image
+        # Upload image
         response = supabase.storage.from_("livres").upload(
             path=image_name,
             file=file,
             file_options={"content-type": "image/jpeg"}
         )
 
-        # Vérifier s'il y a une erreur dans la réponse
         if isinstance(response, dict) and response.get("error"):
-            print("Erreur Supabase (upload):", response["error"])
+            st.error(f"❌ Erreur Supabase (upload): {response['error']}")
             return None
 
         # Obtenir l’URL publique de l’image
-        url = supabase.storage.from_("livres").get_public_url(image_name)
-        return url
+        public_url = supabase.storage.from_("livres").get_public_url(image_name)
+        if hasattr(public_url, 'get'):
+            return public_url.get('publicURL')
+        return public_url  # au cas où c’est une string directement
 
     except Exception as e:
-        print("Erreur Supabase upload:", e)
+        st.error(f"❌ Erreur Supabase upload : {e}")
         return None

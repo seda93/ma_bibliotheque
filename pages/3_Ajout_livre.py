@@ -24,11 +24,11 @@ h1, h2, h3 {
 """, unsafe_allow_html=True)
 
 IMG_DIR = "data/images"
+os.makedirs(IMG_DIR, exist_ok=True)
 
 st.title("➕ Ajouter un livre")
 
 engine = get_sqlalchemy_engine()
-os.makedirs(IMG_DIR, exist_ok=True)
 
 with st.form("ajout_form"):
     isbn = st.text_input("ISBN")
