@@ -1,8 +1,7 @@
 import streamlit as st
+import pandas as pd
 from sqlalchemy import text
 from backend.database import get_sqlalchemy_engine
-from PIL import Image
-import requests
 
 st.markdown("""
 <style>
@@ -21,47 +20,44 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("🔍 Recherche de livres")
+st.title("🔍 Recherche")
 
 engine = get_sqlalchemy_engine()
-recherche = st.text_input("Rechercher par titre, auteur, genre, etc.")
+
+def charger_donnees():
+    with engine.connect() as conn:
+        result = conn.execute(text("SELECT * FROM livres"))
+        return pd.DataFrame(result.fetchall(), columns=result.keys())
+
+df = charger_donnees()
+
+recherche = st.text_input("Rechercher par titre, auteur, éditeur ou genre :")
 
 if recherche:
-    with engine.connect() as conn:
-        result = conn.execute(text("""
-            SELECT * FROM livres 
-            WHERE LOWER(titre) LIKE :q OR LOWER(auteurs) LIKE :q 
-               OR LOWER(genre) LIKE :q OR LOWER(langue) LIKE :q
-               OR LOWER(serie) LIKE :q
-        """), {"q": f"%{recherche.lower()}%"})
-        livres = result.mappings().fetchall()
+    mask = df.apply(lambda row: recherche.lower() in str(row).lower(), axis=1)
+    resultats = df[mask]
 
-    if not livres:
-        st.warning("Aucun livre trouvé.")
-    else:
-        for livre in livres:
+    if not resultats.empty:
+        for _, livre in resultats.iterrows():
             with st.container():
                 cols = st.columns([1, 3])
                 if livre["image"]:
-                    try:
-                        if livre["image"].startswith("http"):
-                            cols[0].image(livre["image"], width=120)
-                        else:
-                            img = Image.open(livre["image"])
-                            cols[0].image(img, width=120)
-                    except:
-                        cols[0].warning("Image non disponible")
+                    cols[0].image(livre["image"], width=120)
                 with cols[1]:
                     st.markdown(f"### {livre['titre']}")
                     st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
-                    st.markdown(f"**Série** : {livre['serie'] or '—'}")
-                    st.markdown(f"**Genre** : {livre['genre'] or '—'}")
-                    st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                     st.markdown(f"**Année** : {livre['annee'] or '—'}")
                     st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
+                    st.markdown(f"**Genre** : {livre['genre'] or '—'}")
+                    st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                     st.markdown(f"**Collection** : {livre['collection'] or '—'}")
+                    st.markdown(f"**Série** : {livre['serie'] or '—'}")
                     st.markdown(f"**Emplacement** : {livre['emplacement'] or '—'}")
-                    if livre["resume"]:
+                    if livre['resume']:
                         with st.expander("📖 Résumé"):
                             st.markdown(livre["resume"])
-            st.markdown("---")
+                    st.markdown("---")
+    else:
+        st.warning("Aucun résultat trouvé.")
+else:
+    st.info("Veuillez entrer un mot-clé.")

@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 from PIL import Image
-from backend.database import get_sqlalchemy_engine
 from sqlalchemy import text
+from backend.database import get_sqlalchemy_engine
 
 st.markdown("""
 <style>
@@ -21,58 +21,40 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
-st.title("📚 Ma bibliothèque")
-
 engine = get_sqlalchemy_engine()
+
+st.title("📚 Ma bibliothèque")
 
 def charger_donnees():
     with engine.connect() as conn:
         result = conn.execute(text("SELECT * FROM livres"))
-        return result.mappings().fetchall()
+        return pd.DataFrame(result.fetchall(), columns=result.keys())
 
-livres = charger_donnees()
+df_livres = charger_donnees()
 
-if not livres:
-    st.info("Aucun livre trouvé.")
+if df_livres.empty:
+    st.info("Aucun livre trouvé dans la base de données.")
 else:
-    colonnes_triables = ["titre", "auteurs", "genre", "langue", "annee"]
-    tri = st.selectbox("Trier par :", colonnes_triables)
+    tri = st.selectbox("Trier par :", ["titre", "auteurs", "genre", "langue", "annee"])
     ordre = st.radio("Ordre :", ["Croissant", "Décroissant"], horizontal=True)
-    livres = sorted(livres, key=lambda x: x[tri] or "", reverse=(ordre == "Décroissant"))
+    df_sorted = df_livres.sort_values(by=tri, ascending=(ordre == "Croissant"))
 
-    for livre in livres:
+    for _, livre in df_sorted.iterrows():
         with st.container():
             cols = st.columns([1, 3])
             if livre["image"]:
-                try:
-                    if livre["image"].startswith("http"):
-                        cols[0].image(livre["image"], width=120)
-                    else:
-                        img = Image.open(livre["image"])
-                        cols[0].image(img, width=120)
-                except:
-                    cols[0].warning("Image non disponible")
+                cols[0].image(livre["image"], width=120)
             with cols[1]:
                 st.markdown(f"### {livre['titre']}")
                 st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
-                st.markdown(f"**Série** : {livre['serie'] or '—'}")
-                st.markdown(f"**Genre** : {livre['genre'] or '—'}")
-                st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                 st.markdown(f"**Année** : {livre['annee'] or '—'}")
                 st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
+                st.markdown(f"**Genre** : {livre['genre'] or '—'}")
+                st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                 st.markdown(f"**Collection** : {livre['collection'] or '—'}")
+                st.markdown(f"**Série** : {livre['serie'] or '—'}")
                 st.markdown(f"**Emplacement** : {livre['emplacement'] or '—'}")
-                if livre["resume"]:
+                if livre['resume']:
                     with st.expander("📖 Résumé"):
                         st.markdown(livre["resume"])
-                # Boutons
-                col1, col2 = st.columns(2)
-                with col1:
-                    if st.button("📝 Modifier", key=f"modif_{livre['id']}"):
-                        st.session_state["livre_a_modifier"] = livre["id"]
-                        st.switch_page("pages/4_Modifier_supprimer.py")
-                with col2:
-                    if st.button("🗑️ Supprimer", key=f"suppr_{livre['id']}"):
-                        st.session_state["livre_a_supprimer"] = livre["id"]
-                        st.rerun()
-        st.markdown("---")
+            st.markdown("---")
