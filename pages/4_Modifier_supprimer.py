@@ -5,7 +5,7 @@ from sqlalchemy import text
 from PIL import Image
 import os
 
-# --- STYLES GLOBAUX PASTEL ---
+# --- STYLE PASTEL ---
 st.markdown("""
 <style>
 body {
@@ -24,7 +24,6 @@ h1, h2, h3 {
 """, unsafe_allow_html=True)
 
 st.title("✏️ Modifier ou supprimer un livre")
-
 engine = get_sqlalchemy_engine()
 
 def get_livres_options():
@@ -58,10 +57,12 @@ def update_livre(livre_id, data):
         """), {**data, "id": livre_id})
 
 def supprimer_livre(livre_id):
+    engine = get_sqlalchemy_engine()
     with engine.connect() as conn:
         conn.execute(text("DELETE FROM livres WHERE id = :id"), {"id": livre_id})
+        conn.commit()
 
-# --- SÉLECTION DU LIVRE ---
+# --- CHOIX DU LIVRE ---
 livres = get_livres_options()
 if not livres:
     st.info("Aucun livre disponible.")
@@ -71,23 +72,20 @@ selected_label = st.selectbox("Choisissez un livre à modifier :", [l["label"] f
 livre_id = [l["id"] for l in livres if l["label"] == selected_label][0]
 livre = get_livre_par_id(livre_id)
 
-# --- ÉTAT DE SUPPRESSION ---
-if "supprimer_en_cours" not in st.session_state:
-    st.session_state.supprimer_en_cours = None
-
+# --- MODIFICATION ---
 if livre:
     with st.form("modifier_livre"):
-        titre = st.text_input("Titre", livre["titre"], key="titre")
-        auteurs = st.text_input("Auteur(s)", livre["auteurs"] or "", key="auteurs")
-        annee = st.text_input("Année", livre["annee"] or "", key="annee")
-        editeur = st.text_input("Éditeur", livre["editeur"] or "", key="editeur")
-        genre = st.text_input("Genre", livre["genre"] or "", key="genre")
-        langue = st.text_input("Langue", livre["langue"] or "", key="langue")
-        collection = st.text_input("Collection", livre["collection"] or "", key="collection")
-        emplacement = st.text_input("Emplacement", livre["emplacement"] or "", key="emplacement")
-        resume = st.text_area("Résumé", livre["resume"] or "", key="resume")
-        serie = st.text_input("Série", livre["serie"] or "", key="serie")
-        isbn = st.text_input("ISBN", livre["isbn"] or "", key="isbn")
+        titre = st.text_input("Titre", livre["titre"])
+        auteurs = st.text_input("Auteur(s)", livre["auteurs"] or "")
+        annee = st.text_input("Année", livre["annee"] or "")
+        editeur = st.text_input("Éditeur", livre["editeur"] or "")
+        genre = st.text_input("Genre", livre["genre"] or "")
+        langue = st.text_input("Langue", livre["langue"] or "")
+        collection = st.text_input("Collection", livre["collection"] or "")
+        emplacement = st.text_input("Emplacement", livre["emplacement"] or "")
+        resume = st.text_area("Résumé", livre["resume"] or "")
+        serie = st.text_input("Série", livre["serie"] or "")
+        isbn = st.text_input("ISBN", livre["isbn"] or "")
 
         st.markdown("**Image actuelle :**")
         if livre["image"]:
@@ -116,39 +114,39 @@ if livre:
                 st.error(f"Erreur envoi image : {e}")
 
         submitted = st.form_submit_button("💾 Enregistrer les modifications")
+        if submitted:
+            update_livre(livre_id, {
+                "titre": titre,
+                "auteurs": auteurs,
+                "annee": annee,
+                "editeur": editeur,
+                "genre": genre,
+                "langue": langue,
+                "collection": collection,
+                "emplacement": emplacement,
+                "resume": resume,
+                "isbn": isbn,
+                "image": image_a_sauver,
+                "serie": serie,
+            })
+            st.success("✅ Livre modifié avec succès.")
+            st.rerun()
 
-    if submitted:
-        update_livre(livre_id, {
-            "titre": titre,
-            "auteurs": auteurs,
-            "annee": annee,
-            "editeur": editeur,
-            "genre": genre,
-            "langue": langue,
-            "collection": collection,
-            "emplacement": emplacement,
-            "resume": resume,
-            "isbn": isbn,
-            "image": image_a_sauver,
-            "serie": serie,
-        })
-        st.success("✅ Livre modifié avec succès.")
-        st.rerun()
+# --- SUPPRESSION ---
+st.markdown("---")
+if st.button("🗑️ Supprimer ce livre"):
+    st.session_state["livre_a_supprimer"] = livre_id
 
-    # --- Bouton Supprimer + Confirmation en dehors du form ---
-    if st.button("🗑️ Supprimer ce livre"):
-        st.session_state.supprimer_en_cours = livre_id
-
-    if st.session_state.get("supprimer_en_cours") == livre_id:
-        st.warning(f"⚠️ Voulez-vous vraiment supprimer **{livre['titre']}** ?")
-        col_conf, col_annul = st.columns(2)
-        with col_conf:
-            if st.button("✅ Oui, supprimer définitivement", key="confirm_suppression"):
-                supprimer_livre(livre_id)
-                st.success("🗑️ Livre supprimé.")
-                st.session_state.supprimer_en_cours = None
-                st.rerun()
-        with col_annul:
-            if st.button("❌ Annuler", key="cancel_suppression"):
-                st.session_state.supprimer_en_cours = None
-                st.info("Suppression annulée.")
+if st.session_state.get("livre_a_supprimer") == int(livre["id"]):
+    st.warning(f"⚠️ Confirmer la suppression de « {livre['titre']} » ?")
+    col_ok, col_cancel = st.columns([1, 1])
+    with col_ok:
+        if st.button("✅ Oui, supprimer définitivement"):
+            supprimer_livre(int(livre["id"]))
+            st.success("🗑️ Livre supprimé.")
+            st.session_state.pop("livre_a_supprimer", None)
+            st.rerun()
+    with col_cancel:
+        if st.button("❌ Annuler la suppression"):
+            st.session_state.pop("livre_a_supprimer", None)
+            st.info("Suppression annulée.")
