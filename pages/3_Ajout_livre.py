@@ -38,7 +38,7 @@ with st.form("ajout_form"):
     collection = st.text_input("Collection", infos.get("collection", ""))
     emplacement = st.text_input("Emplacement", infos.get("emplacement", ""))
     resume = st.text_area("Résumé", infos.get("resume", ""))
-    isbn_final = st.text_input("ISBN", infos.get("isbn", isbn))
+    isbn_final = st.text_input("ISBN", infos.get("isbn", isbn), key="isbn_final")
     image_url = infos.get("image", "")
     image = st.file_uploader("📷 Image de couverture", type=["jpg", "jpeg", "png"])
 
