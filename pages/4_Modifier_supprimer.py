@@ -1,3 +1,10 @@
+import streamlit as st
+from backend.supabase_client import upload_image_to_bucket
+from backend.database import get_sqlalchemy_engine
+from sqlalchemy import text
+from PIL import Image
+import os
+
 st.markdown("""
 <style>
 body {
@@ -14,13 +21,6 @@ h1, h2, h3 {
 }
 </style>
 """, unsafe_allow_html=True)
-
-import streamlit as st
-from backend.supabase_client import upload_image_to_bucket
-from backend.database import get_sqlalchemy_engine
-from sqlalchemy import text
-from PIL import Image
-import os
 
 st.title("✏️ Modifier un livre")
 

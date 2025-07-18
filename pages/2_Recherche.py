@@ -1,3 +1,9 @@
+import streamlit as st
+from sqlalchemy import text
+from backend.database import get_sqlalchemy_engine
+from PIL import Image
+import requests
+
 st.markdown("""
 <style>
 body {
@@ -14,12 +20,6 @@ h1, h2, h3 {
 }
 </style>
 """, unsafe_allow_html=True)
-
-import streamlit as st
-from sqlalchemy import text
-from backend.database import get_sqlalchemy_engine
-from PIL import Image
-import requests
 
 st.title("🔍 Recherche de livres")
 

@@ -1,3 +1,11 @@
+import streamlit as st
+from backend.isbn_lookup import fetch_book_info
+from backend.database import get_sqlalchemy_engine
+from backend.supabase_client import upload_image_to_bucket
+import os
+from sqlalchemy import text
+from PIL import Image
+
 st.markdown("""
 <style>
 body {
@@ -14,14 +22,6 @@ h1, h2, h3 {
 }
 </style>
 """, unsafe_allow_html=True)
-
-import streamlit as st
-from backend.isbn_lookup import fetch_book_info
-from backend.database import get_sqlalchemy_engine
-from backend.supabase_client import upload_image_to_bucket
-import os
-from sqlalchemy import text
-from PIL import Image
 
 IMG_DIR = "data/images"
 
@@ -96,4 +96,3 @@ with st.form("ajout_form"):
                 st.session_state["infos"] = {}
             except Exception as e:
                 st.error(f"Erreur lors de l'ajout : {e}")
-                

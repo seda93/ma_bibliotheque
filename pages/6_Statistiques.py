@@ -1,3 +1,9 @@
+import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
+from sqlalchemy import text
+from backend.database import get_sqlalchemy_engine
+
 st.markdown("""
 <style>
 body {
@@ -14,12 +20,6 @@ h1, h2, h3 {
 }
 </style>
 """, unsafe_allow_html=True)
-
-import streamlit as st
-import pandas as pd
-import matplotlib.pyplot as plt
-from sqlalchemy import text
-from backend.database import get_sqlalchemy_engine
 
 engine = get_sqlalchemy_engine()
 st.title("📊 Statistiques de la bibliothèque")

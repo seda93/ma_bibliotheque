@@ -1,3 +1,9 @@
+import streamlit as st
+import pandas as pd
+from PIL import Image
+from backend.database import get_sqlalchemy_engine
+from sqlalchemy import text
+
 st.markdown("""
 <style>
 body {
@@ -14,12 +20,6 @@ h1, h2, h3 {
 }
 </style>
 """, unsafe_allow_html=True)
-
-import streamlit as st
-import pandas as pd
-from PIL import Image
-from backend.database import get_sqlalchemy_engine
-from sqlalchemy import text
 
 st.title("📚 Ma bibliothèque")
 
