@@ -2,10 +2,10 @@ import streamlit as st
 from backend.isbn_lookup import fetch_book_info
 from backend.database import get_sqlalchemy_engine
 from backend.supabase_client import upload_image_to_bucket
-import os
 from sqlalchemy import text
-from PIL import Image
+import os
 
+# --- STYLES PASTEL ---
 st.markdown("""
 <style>
 body {
@@ -23,26 +23,28 @@ h1, h2, h3 {
 </style>
 """, unsafe_allow_html=True)
 
+st.title("➕ Ajouter un livre")
+
 IMG_DIR = "data/images"
 os.makedirs(IMG_DIR, exist_ok=True)
 
-st.title("➕ Ajouter un livre")
-
 engine = get_sqlalchemy_engine()
 
-with st.form("ajout_form"):
-    isbn = st.text_input("ISBN")
-    if isbn and st.form_submit_button("🔍 Chercher infos ISBN"):
-        infos = fetch_book_info(isbn)
-        if infos:
-            st.session_state["infos"] = infos
-        else:
-            st.warning("Aucune information trouvée.")
+isbn = st.text_input("📖 ISBN (optionnel)", "")
+if isbn and st.button("🔍 Chercher infos ISBN"):
+    infos = fetch_book_info(isbn)
+    if infos:
+        st.success("✅ Informations trouvées.")
+        st.session_state["infos"] = infos
     else:
+        st.warning("❌ Aucune information trouvée.")
         st.session_state["infos"] = {}
+elif "infos" not in st.session_state:
+    st.session_state["infos"] = {}
 
-    infos = st.session_state.get("infos", {})
+infos = st.session_state["infos"]
 
+with st.form("form_ajout"):
     titre = st.text_input("Titre", infos.get("titre", ""))
     auteurs = st.text_input("Auteur(s)", infos.get("auteurs", ""))
     serie = st.text_input("Série", infos.get("serie", ""))
@@ -54,30 +56,38 @@ with st.form("ajout_form"):
     emplacement = st.text_input("Emplacement", infos.get("emplacement", ""))
     resume = st.text_area("Résumé", infos.get("resume", ""))
     isbn_final = st.text_input("ISBN", infos.get("isbn", isbn), key="isbn_final")
-    image_url = infos.get("image", "")
     image = st.file_uploader("📷 Image de couverture", type=["jpg", "jpeg", "png"])
 
-    if st.form_submit_button("💾 Ajouter le livre"):
+    submit = st.form_submit_button("💾 Ajouter")
+
+    if submit:
         if not titre:
-            st.error("Le titre est obligatoire.")
+            st.error("❌ Le titre est obligatoire.")
         else:
-            image_path_or_url = image_url
+            image_url = infos.get("image", "")
             if image:
                 try:
                     image_bytes = image.read()
-                    uploaded_url = upload_image_to_bucket(image_bytes, image.name)
-                    if uploaded_url:
-                        image_path_or_url = uploaded_url
-                        st.success("✅ Image envoyée dans Supabase Storage.")
+                    image_url_uploaded = upload_image_to_bucket(image_bytes, image.name)
+                    if image_url_uploaded:
+                        image_url = image_url_uploaded
+                        st.success("✅ Image envoyée sur Supabase.")
                     else:
-                        st.warning("⚠️ L'image n'a pas pu être uploadée.")
+                        st.warning("⚠️ L’image n’a pas pu être uploadée.")
                 except Exception as e:
-                    st.error(f"Erreur d’envoi image : {e}")
+                    st.error(f"Erreur lors de l’upload : {e}")
 
-            insert_sql = """
-                INSERT INTO livres (titre, auteurs, serie, annee, genre, langue, isbn, editeur, collection, resume, emplacement, image)
-                VALUES (:titre, :auteurs, :serie, :annee, :genre, :langue, :isbn, :editeur, :collection, :resume, :emplacement, :image)
-            """
+            # Insertion dans la base PostgreSQL
+            insert_query = text("""
+                INSERT INTO livres (
+                    titre, auteurs, serie, annee, genre, langue, isbn, editeur,
+                    collection, emplacement, resume, image
+                ) VALUES (
+                    :titre, :auteurs, :serie, :annee, :genre, :langue, :isbn,
+                    :editeur, :collection, :emplacement, :resume, :image
+                )
+            """)
+
             params = {
                 "titre": titre,
                 "auteurs": auteurs,
@@ -88,15 +98,15 @@ with st.form("ajout_form"):
                 "isbn": isbn_final,
                 "editeur": editeur,
                 "collection": collection,
-                "resume": resume,
                 "emplacement": emplacement,
-                "image": image_path_or_url
+                "resume": resume,
+                "image": image_url
             }
 
             try:
                 with engine.begin() as conn:
-                    conn.execute(text(insert_sql), params)
+                    conn.execute(insert_query, params)
                 st.success("✅ Livre ajouté avec succès.")
                 st.session_state["infos"] = {}
             except Exception as e:
-                st.error(f"Erreur lors de l'ajout : {e}")
+                st.error(f"❌ Erreur lors de l'ajout : {e}")
