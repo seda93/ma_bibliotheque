@@ -1,9 +1,10 @@
 import streamlit as st
 import pandas as pd
-import psycopg2
-import os
+from sqlalchemy import text
 from PIL import Image
-from backend.database import get_connection
+import os
+
+from backend.database import get_sqlalchemy_engine
 from backend.supabase_client import upload_image_to_bucket
 
 IMG_DIR = "data/images"
@@ -11,21 +12,19 @@ os.makedirs(IMG_DIR, exist_ok=True)
 
 def get_liste_livres():
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("SELECT id, titre, auteurs FROM livres ORDER BY titre")
-        livres = cursor.fetchall()
-        conn.close()
-        return livres
+        engine = get_sqlalchemy_engine()
+        with engine.connect() as conn:
+            result = conn.execute(text("SELECT id, titre, auteurs FROM livres ORDER BY titre"))
+            return result.fetchall()
     except Exception as e:
         st.error(f"Erreur : {e}")
         return []
 
 def get_livre_par_id(livre_id):
     try:
-        conn = get_connection()
-        df = pd.read_sql_query("SELECT * FROM livres WHERE id = %s", conn, params=(livre_id,))
-        conn.close()
+        engine = get_sqlalchemy_engine()
+        with engine.connect() as conn:
+            df = pd.read_sql("SELECT * FROM livres WHERE id = %(id)s", conn, params={"id": livre_id})
         return df.iloc[0] if not df.empty else None
     except Exception as e:
         st.error(f"Erreur : {e}")
@@ -33,21 +32,15 @@ def get_livre_par_id(livre_id):
 
 def modifier_livre(livre_id, donnees):
     try:
-        conn = get_connection()
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE livres SET
-                titre=%s, auteurs=%s, serie=%s, collection=%s, annee=%s,
-                genre=%s, langue=%s, editeur=%s, emplacement=%s,
-                resume=%s, image=%s
-            WHERE id=%s
-        """, (
-            donnees["titre"], donnees["auteurs"], donnees["serie"], donnees["collection"],
-            donnees["annee"], donnees["genre"], donnees["langue"], donnees["editeur"],
-            donnees["emplacement"], donnees["resume"], donnees["image"], livre_id
-        ))
-        conn.commit()
-        conn.close()
+        engine = get_sqlalchemy_engine()
+        with engine.connect() as conn:
+            conn.execute(text("""
+                UPDATE livres SET
+                    titre=:titre, auteurs=:auteurs, serie=:serie, collection=:collection,
+                    annee=:annee, genre=:genre, langue=:langue, editeur=:editeur,
+                    emplacement=:emplacement, resume=:resume, image=:image
+                WHERE id=:id
+            """), {**donnees, "id": livre_id})
         return True
     except Exception as e:
         st.error(f"Erreur lors de la mise à jour : {e}")
@@ -65,9 +58,10 @@ if not livres:
 option_map = {f"{titre} – {auteurs or 'Auteur inconnu'}": id for id, titre, auteurs in livres}
 selected_label = st.selectbox("Choisir un livre à modifier :", list(option_map.keys()))
 livre_id = option_map[selected_label]
+
 livre = get_livre_par_id(livre_id)
 
-if not livre.empty:
+if livre is not None:
     with st.form("modifier_livre"):
         titre = st.text_input("Titre", livre["titre"])
         auteurs = st.text_input("Auteur(s)", livre["auteurs"])
@@ -78,22 +72,25 @@ if not livre.empty:
         langue = st.text_input("Langue", livre["langue"])
         editeur = st.text_input("Éditeur", livre["editeur"])
         emplacement = st.text_input("Emplacement", livre["emplacement"])
-        resume = st.text_area("Résumé", livre["resume"] or "")
+        resume = st.text_area("Résumé", livre["resume"])
 
-        nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["jpg", "jpeg", "png"])
-        image_url = st.text_input("ou coller une URL d’image", livre["image"])
-
-        if nouvelle_image is not None:
-            uploaded_url = upload_image_to_bucket(nouvelle_image, nouvelle_image.name)
-            if uploaded_url:
-                image_a_sauver = uploaded_url
+        st.markdown("**Image actuelle :**")
+        if livre["image"]:
+            if livre["image"].startswith("http"):
+                st.image(livre["image"], width=100)
             else:
-                st.error("❌ L’image n’a pas pu être envoyée.")
-                image_a_sauver = livre["image"]
-        else:
-            image_a_sauver = image_url
+                try:
+                    st.image(Image.open(livre["image"]), width=100)
+                except:
+                    st.warning("Image non trouvée localement.")
+        nouvelle_image = st.file_uploader("📷 Nouvelle image", type=["jpg", "png"], key="modif_image")
 
-        submitted = st.form_submit_button("✅ Enregistrer les modifications")
+        image_url = livre["image"]
+        if nouvelle_image:
+            image_url = upload_image_to_bucket(nouvelle_image)
+
+        submitted = st.form_submit_button("💾 Enregistrer les modifications")
+
         if submitted:
             donnees = {
                 "titre": titre,
@@ -106,9 +103,10 @@ if not livre.empty:
                 "editeur": editeur,
                 "emplacement": emplacement,
                 "resume": resume,
-                "image": image_a_sauver
+                "image": image_url
             }
-            success = modifier_livre(livre_id, donnees)
-            if success:
-                st.success("✅ Livre modifié avec succès.")
+            if modifier_livre(livre_id, donnees):
+                st.success("✅ Livre modifié avec succès !")
                 st.rerun()
+else:
+    st.error("Livre introuvable.")
