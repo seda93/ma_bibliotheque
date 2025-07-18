@@ -38,7 +38,14 @@ else:
         with st.container():
             cols = st.columns([1, 3])
             if livre["image"]:
-                cols[0].image(livre["image"], width=120)
+                try:
+                    if livre["image"].startswith("http"):
+                        cols[0].image(livre["image"], width=120)
+                    else:
+                        img = Image.open(livre["image"])
+                        cols[0].image(img, width=120)
+                except:
+                    cols[0].markdown("⚠️ Image non trouvée")
             with cols[1]:
                 st.markdown(f"### {livre['titre']}")
                 st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
@@ -77,13 +84,3 @@ else:
                                 del st.session_state["livre_a_supprimer"]
                                 st.info("Suppression annulée.")
             st.markdown("---")
-
-if livre["image"]:
-    try:
-        if livre["image"].startswith("http"):
-            cols[0].image(livre["image"], width=120)
-        else:
-            img = Image.open(livre["image"])
-            cols[0].image(img, width=120)
-    except:
-        cols[0].markdown("⚠️ Image non trouvée")
