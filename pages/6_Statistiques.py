@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
 from sqlalchemy import text
-from backend.database import engine
+from backend.database import get_sqlalchemy_engine
 
 # --- STYLES GLOBAUX PASTEL ---
 st.markdown("""
@@ -23,6 +23,8 @@ st.markdown("""
         }
     </style>
 """, unsafe_allow_html=True)
+
+engine = get_sqlalchemy_engine()
 
 st.title("📊 Statistiques de la bibliothèque")
 
