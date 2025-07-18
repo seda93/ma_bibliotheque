@@ -1,22 +1,30 @@
-import requests
-import streamlit as st
+from supabase import create_client
+import os
+from dotenv import load_dotenv
 
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-BUCKET = "images"
+load_dotenv()
 
-def upload_image_to_bucket(image_file, image_name):
-    url = f"{SUPABASE_URL}/storage/v1/object/{BUCKET}/{image_name}"
-    headers = {
-        "apikey": SUPABASE_KEY,
-        "Authorization": f"Bearer {SUPABASE_KEY}",
-        "Content-Type": "application/octet-stream"
-    }
+SUPABASE_URL = os.getenv("SUPABASE_URL")
+SUPABASE_KEY = os.getenv("SUPABASE_KEY")
 
-    response = requests.put(url, headers=headers, data=image_file.read())
-    
-    if response.status_code == 200:
-        return f"{SUPABASE_URL}/storage/v1/object/public/{BUCKET}/{image_name}"
-    else:
-        print("Erreur upload :", response.status_code, response.text)
+supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+def upload_image_to_bucket(file, image_name):
+    if file is None:
+        return None
+
+    try:
+        response = supabase.storage.from_("livres").upload(
+            path=image_name,
+            file=file,
+            file_options={"content-type": "image/jpeg"},
+            upsert=True,
+        )
+        if response.get("error"):
+            return None
+        
+        url = supabase.storage.from_("livres").get_public_url(image_name)
+        return url
+    except Exception as e:
+        print("Erreur Supabase upload:", e)
         return None
