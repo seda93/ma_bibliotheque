@@ -9,7 +9,7 @@ COVERS_DIR = "data/covers"
 def get_liste_livres():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
-    cursor.execute("SELECT id, titre FROM livres ORDER BY titre")
+    cursor.execute("SELECT id, titre, auteurs FROM livres ORDER BY titre")
     result = cursor.fetchall()
     conn.close()
     return result
@@ -46,7 +46,7 @@ st.title("📝 Modifier un livre par sélection")
 
 # Étape 1 : choisir le livre à modifier
 livres = get_liste_livres()
-options = {f"{titre} (ID {id})": id for id, titre in livres}
+options = {f"{titre} – {auteurs or 'Auteur inconnu'} (ID {id})": id for id, titre, auteurs in livres}
 selection = st.selectbox("📖 Choisir un livre à modifier :", list(options.keys()))
 
 if selection:
