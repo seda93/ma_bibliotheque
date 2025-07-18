@@ -54,13 +54,20 @@ with st.form("modifier_livre"):
     image_url = st.text_input("ou coller une URL d’image", livre["image"])
 
     if nouvelle_image is not None:
+        # Chemin du dossier images
+        dossier_images = os.path.join("data", "images")
+
+        # Crée le dossier 'data/images' s'il n'existe pas encore
+        if not os.path.exists(dossier_images):
+            os.makedirs(dossier_images)
+
         # Enregistrement local
-        chemin_image = os.path.join("images", nouvelle_image.name)
+        chemin_image = os.path.join(dossier_images, nouvelle_image.name)
         with open(chemin_image, "wb") as f:
             f.write(nouvelle_image.read())
         image_a_sauver = chemin_image
     else:
-        image_a_sauver = image_url
+        image_a_sauver = livre["image"]
 
     submitted = st.form_submit_button("✅ Enregistrer les modifications")
     if submitted:
