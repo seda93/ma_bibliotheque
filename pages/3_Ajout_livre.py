@@ -1,22 +1,21 @@
 import streamlit as st
-import sqlite3
 from backend.isbn_lookup import fetch_book_info
+from backend.database import get_connection
+from backend.supabase_client import upload_image_to_bucket
 import os
 
 IMG_DIR = "data/images"
 os.makedirs(IMG_DIR, exist_ok=True)
 
-DB_PATH = "data/livres.db"
-
 def ajouter_livre(donnees):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
     try:
+        conn = get_connection()
+        cursor = conn.cursor()
         cursor.execute("""
             INSERT INTO livres (
                 titre, auteurs, serie, annee, genre, langue, isbn,
                 editeur, collection, resume, emplacement, image
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
         """, (
             donnees["titre"], donnees["auteurs"], donnees["serie"], donnees["annee"],
             donnees["genre"], donnees["langue"], donnees["isbn"],
@@ -25,8 +24,11 @@ def ajouter_livre(donnees):
         ))
         conn.commit()
         st.success("📚 Livre ajouté avec succès !")
-    except sqlite3.IntegrityError:
-        st.warning("⚠️ Ce livre (ISBN) existe déjà dans la base.")
+    except Exception as e:
+        if "duplicate key value" in str(e):
+            st.warning("⚠️ Ce livre (ISBN) existe déjà dans la base.")
+        else:
+            st.error(f"Erreur lors de l'ajout : {e}")
     finally:
         conn.close()
 
@@ -68,18 +70,17 @@ with st.form("form_ajout"):
     infos["emplacement"] = st.text_input("Emplacement (bibliothèque, étagère...)", value=infos["emplacement"])
     infos["image"] = st.text_input("URL de l’image de couverture", value=infos["image"])
 
+    image_upload = st.file_uploader("Image de couverture (fichier ou laisser vide si URL)", type=["jpg", "png"])
+
+    if image_upload:
+        uploaded_url = upload_image_to_bucket(image_upload, image_upload.name)
+        if uploaded_url:
+            infos["image"] = uploaded_url
+
+
     submit = st.form_submit_button("📥 Ajouter le livre")
     if submit:
         if infos["titre"].strip():
             ajouter_livre(infos)
         else:
             st.error("Le champ titre est obligatoire.")
-
-image_upload = st.file_uploader("Image de couverture (fichier ou laisser vide si URL)", type=["jpg", "png"])
-
-# Générer un nom de fichier local
-if image_upload:
-    img_path = os.path.join(IMG_DIR, image_upload.name)
-    with open(img_path, "wb") as f:
-        f.write(image_upload.getbuffer())
-    infos["image"] = img_path  # enregistre le chemin local

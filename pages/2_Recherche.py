@@ -1,18 +1,18 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
 from PIL import Image
 import os
-
-DB_PATH = "data/livres.db"
+from backend.database import get_connection  # ← ta fonction centralisée PostgreSQL
 
 def charger_donnees():
-    if not os.path.exists(DB_PATH):
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM livres", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Erreur lors du chargement : {e}")
         return pd.DataFrame()
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM livres", conn)
-    conn.close()
-    return df
 
 def afficher_livre(livre):
     with st.container():
@@ -42,7 +42,7 @@ def afficher_livre(livre):
                     st.markdown(livre["resume"])
     st.markdown("---")
 
-# ⬇️ Interface utilisateur
+# Interface utilisateur
 st.title("🔎 Recherche de livres")
 df = charger_donnees()
 
@@ -51,7 +51,6 @@ if df.empty:
 else:
     recherche = st.text_input("Rechercher par titre, auteur, éditeur ou genre")
 
-    # Filtrage simple (tu peux l’enrichir plus tard)
     if recherche:
         df = df[df.apply(lambda row: recherche.lower() in str(row).lower(), axis=1)]
 

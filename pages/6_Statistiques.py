@@ -1,15 +1,19 @@
 import streamlit as st
 import pandas as pd
-import sqlite3
 import matplotlib.pyplot as plt
+from backend.database import get_connection
 
 st.title("📊 Statistiques de votre bibliothèque")
 
 def charger_data():
-    conn = sqlite3.connect("data/livres.db")
-    df = pd.read_sql_query("SELECT * FROM livres", conn)
-    conn.close()
-    return df
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM livres", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Erreur de chargement : {e}")
+        return pd.DataFrame()
 
 df = charger_data()
 

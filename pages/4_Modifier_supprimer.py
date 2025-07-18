@@ -1,24 +1,59 @@
 import streamlit as st
-import sqlite3
 import pandas as pd
-from PIL import Image
+import psycopg2
 import os
+from PIL import Image
+from backend.database import get_connection
+from backend.supabase_client import upload_image_to_bucket
 
-DB_PATH = "data/livres.db"
+IMG_DIR = "data/images"
+os.makedirs(IMG_DIR, exist_ok=True)
 
 def get_liste_livres():
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT id, titre, auteurs FROM livres ORDER BY titre")
-    livres = cursor.fetchall()
-    conn.close()
-    return livres
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, titre, auteurs FROM livres ORDER BY titre")
+        livres = cursor.fetchall()
+        conn.close()
+        return livres
+    except Exception as e:
+        st.error(f"Erreur : {e}")
+        return []
 
 def get_livre_par_id(livre_id):
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM livres WHERE id = ?", conn, params=(livre_id,))
-    conn.close()
-    return df.iloc[0] if not df.empty else None
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM livres WHERE id = %s", conn, params=(livre_id,))
+        conn.close()
+        return df.iloc[0] if not df.empty else None
+    except Exception as e:
+        st.error(f"Erreur : {e}")
+        return None
+
+def modifier_livre(livre_id, donnees):
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE livres SET
+                titre=%s, auteurs=%s, serie=%s, collection=%s, annee=%s,
+                genre=%s, langue=%s, editeur=%s, emplacement=%s,
+                resume=%s, image=%s
+            WHERE id=%s
+        """, (
+            donnees["titre"], donnees["auteurs"], donnees["serie"], donnees["collection"],
+            donnees["annee"], donnees["genre"], donnees["langue"], donnees["editeur"],
+            donnees["emplacement"], donnees["resume"], donnees["image"], livre_id
+        ))
+        conn.commit()
+        conn.close()
+        return True
+    except Exception as e:
+        st.error(f"Erreur lors de la mise à jour : {e}")
+        return False
+
+# --- Interface Streamlit ---
 
 st.title("📝 Modifier un livre")
 
@@ -27,58 +62,53 @@ if not livres:
     st.info("Aucun livre à modifier.")
     st.stop()
 
-# Création d'un dictionnaire pour relier titre-auteur à l'ID
 option_map = {f"{titre} – {auteurs or 'Auteur inconnu'}": id for id, titre, auteurs in livres}
-
-# Liste des titres pour l'affichage
 selected_label = st.selectbox("Choisir un livre à modifier :", list(option_map.keys()))
-
 livre_id = option_map[selected_label]
 livre = get_livre_par_id(livre_id)
 
-# Formulaire de modification
-with st.form("modifier_livre"):
-    titre = st.text_input("Titre", livre["titre"])
-    auteurs = st.text_input("Auteur(s)", livre["auteurs"])
-    serie = st.text_input("Série", livre["serie"])
-    collection = st.text_input("Collection", livre["collection"])
-    annee = st.text_input("Année", livre["annee"])
-    genre = st.text_input("Genre", livre["genre"])
-    langue = st.text_input("Langue", livre["langue"])
-    editeur = st.text_input("Éditeur", livre["editeur"])
-    emplacement = st.text_input("Emplacement", livre["emplacement"])
-    resume = st.text_area("Résumé", livre["resume"] or "")
+if livre:
+    with st.form("modifier_livre"):
+        titre = st.text_input("Titre", livre["titre"])
+        auteurs = st.text_input("Auteur(s)", livre["auteurs"])
+        serie = st.text_input("Série", livre["serie"])
+        collection = st.text_input("Collection", livre["collection"])
+        annee = st.text_input("Année", livre["annee"])
+        genre = st.text_input("Genre", livre["genre"])
+        langue = st.text_input("Langue", livre["langue"])
+        editeur = st.text_input("Éditeur", livre["editeur"])
+        emplacement = st.text_input("Emplacement", livre["emplacement"])
+        resume = st.text_area("Résumé", livre["resume"] or "")
 
-    # Image locale ou URL
-    nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["jpg", "jpeg", "png"])
-    image_url = st.text_input("ou coller une URL d’image", livre["image"])
+        nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["jpg", "jpeg", "png"])
+        image_url = st.text_input("ou coller une URL d’image", livre["image"])
 
-    # Partie pour gérer l'image locale
-    if nouvelle_image is not None:
-        # S'assurer que le dossier images existe
-        dossier_images = os.path.join("data", "images")
-        os.makedirs(dossier_images, exist_ok=True)
+        if nouvelle_image is not None:
+            uploaded_url = upload_image_to_bucket(nouvelle_image, nouvelle_image.name)
+            if uploaded_url:
+                image_a_sauver = uploaded_url
+            else:
+                st.error("❌ L’image n’a pas pu être envoyée.")
+                image_a_sauver = livre["image"]
+        else:
+            image_a_sauver = image_url
 
-        # Enregistrement de l'image
-        chemin_image = os.path.join(dossier_images, nouvelle_image.name)
-        with open(chemin_image, "wb") as f:
-            f.write(nouvelle_image.read())
-        image_a_sauver = chemin_image
-    else:
-        image_a_sauver = livre["image"]
-
-    submitted = st.form_submit_button("✅ Enregistrer les modifications")
-    if submitted:
-        conn = sqlite3.connect(DB_PATH)
-        cursor = conn.cursor()
-        cursor.execute("""
-            UPDATE livres
-            SET titre=?, auteurs=?, serie=?, collection=?, annee=?, genre=?, langue=?,
-                editeur=?, emplacement=?, resume=?, image=?
-            WHERE id=?
-        """, (titre, auteurs, serie, collection, annee, genre, langue,
-              editeur, emplacement, resume, image_a_sauver, livre_id))
-        conn.commit()
-        conn.close()
-        st.success("✅ Livre modifié avec succès.")
-        st.rerun()
+        submitted = st.form_submit_button("✅ Enregistrer les modifications")
+        if submitted:
+            donnees = {
+                "titre": titre,
+                "auteurs": auteurs,
+                "serie": serie,
+                "collection": collection,
+                "annee": annee,
+                "genre": genre,
+                "langue": langue,
+                "editeur": editeur,
+                "emplacement": emplacement,
+                "resume": resume,
+                "image": image_a_sauver
+            }
+            success = modifier_livre(livre_id, donnees)
+            if success:
+                st.success("✅ Livre modifié avec succès.")
+                st.rerun()

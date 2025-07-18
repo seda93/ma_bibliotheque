@@ -1,26 +1,29 @@
 import streamlit as st
-import sqlite3
+import psycopg2
 import pandas as pd
 import os
 from PIL import Image
-
-DB_PATH = "data/livres.db"
+from backend.database import get_connection  # <-- ton fichier de connexion PostgreSQL
 
 def charger_donnees():
-    if not os.path.exists(DB_PATH):
-        st.error("Base de données non trouvée.")
+    try:
+        conn = get_connection()
+        df = pd.read_sql_query("SELECT * FROM livres", conn)
+        conn.close()
+        return df
+    except Exception as e:
+        st.error(f"Erreur de connexion à la base : {e}")
         return pd.DataFrame()
-    conn = sqlite3.connect(DB_PATH)
-    df = pd.read_sql_query("SELECT * FROM livres", conn)
-    conn.close()
-    return df
 
 def supprimer_livre(livre_id):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("DELETE FROM livres WHERE id = ?", (livre_id,))
-    conn.commit()
-    conn.close()
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute("DELETE FROM livres WHERE id = %s", (livre_id,))
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        st.error(f"Erreur lors de la suppression : {e}")
 
 st.title("📚 Ma bibliothèque")
 
@@ -85,4 +88,4 @@ else:
                             if st.button("❌ Annuler", key=f"cancel_{livre['id']}"):
                                 del st.session_state["livre_a_supprimer"]
                                 st.info("Suppression annulée.")
-            st.markdown("---")
+        st.markdown("---")
