@@ -1,57 +1,60 @@
 import streamlit as st
-import pandas as pd
 import sqlite3
+import pandas as pd
+from PIL import Image
 import os
 
 DB_PATH = "data/livres.db"
 
-def charger_livres():
+def charger_donnees():
     if not os.path.exists(DB_PATH):
-        st.error("Base de données non trouvée.")
         return pd.DataFrame()
     conn = sqlite3.connect(DB_PATH)
     df = pd.read_sql_query("SELECT * FROM livres", conn)
     conn.close()
     return df
 
-def filtrer_livres(df, titre, auteur, genre, langue):
-    if titre:
-        df = df[df["titre"].str.contains(titre, case=False, na=False)]
-    if auteur:
-        df = df[df["auteurs"].str.contains(auteur, case=False, na=False)]
-    if genre and genre != "Tous":
-        df = df[df["genre"].str.contains(genre, case=False, na=False)]
-    if langue and langue != "Toutes":
-        df = df[df["langue"].str.contains(langue, case=False, na=False)]
-    return df
+def afficher_livre(livre):
+    with st.container():
+        cols = st.columns([1, 3])
+        if livre["image"]:
+            try:
+                if livre["image"].startswith("http"):
+                    cols[0].image(livre["image"], width=120)
+                else:
+                    img = Image.open(livre["image"])
+                    cols[0].image(img, width=120)
+            except:
+                cols[0].warning("Image non trouvée.")
+        with cols[1]:
+            st.markdown(f"### {livre['titre']}")
+            st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
+            st.markdown(f"**Année** : {livre['annee'] or '—'}")
+            st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
+            st.markdown(f"**Genre** : {livre['genre'] or '—'}")
+            st.markdown(f"**Langue** : {livre['langue'] or '—'}")
+            st.markdown(f"**Collection** : {livre['collection'] or '—'}")
+            st.markdown(f"**Emplacement** : {livre['emplacement'] or '—'}")
+            if livre['resume']:
+                with st.expander("📖 Résumé"):
+                    st.markdown(livre["resume"])
+    st.markdown("---")
 
+# ⬇️ Interface utilisateur
 st.title("🔎 Recherche de livres")
+df = charger_donnees()
 
-df_livres = charger_livres()
-
-if df_livres.empty:
-    st.info("Aucun livre trouvé dans la base.")
+if df.empty:
+    st.info("Aucun livre trouvé.")
 else:
-    with st.expander("🔍 Filtres de recherche", expanded=True):
-        col1, col2 = st.columns(2)
-        with col1:
-            titre = st.text_input("Titre contient")
-            auteur = st.text_input("Auteur contient")
-        with col2:
-            genre = st.selectbox("Genre", options=["Tous"] + sorted(df_livres["genre"].dropna().unique().tolist()))
-            langue = st.selectbox("Langue", options=["Toutes"] + sorted(df_livres["langue"].dropna().unique().tolist()))
+    recherche = st.text_input("Rechercher par titre, auteur, éditeur ou genre")
 
-    resultats = filtrer_livres(df_livres, titre, auteur, genre, langue)
+    # Filtrage simple (tu peux l’enrichir plus tard)
+    if recherche:
+        df = df[df.apply(lambda row: recherche.lower() in str(row).lower(), axis=1)]
 
-    st.markdown(f"### 📚 Résultats : {len(resultats)} livre(s) trouvé(s)")
-    st.dataframe(resultats, use_container_width=True)
-
-    # Export CSV
-    if not resultats.empty:
-        csv = resultats.to_csv(index=False).encode("utf-8")
-        st.download_button(
-            label="📥 Exporter les résultats en CSV",
-            data=csv,
-            file_name="resultats_recherche.csv",
-            mime="text/csv"
-        )
+    if df.empty:
+        st.warning("Aucun résultat.")
+    else:
+        for _, livre in df.iterrows():
+            afficher_livre(livre)
