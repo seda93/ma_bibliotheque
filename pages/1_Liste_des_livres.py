@@ -42,7 +42,8 @@ else:
                     if livre["image"].startswith("http"):
                         cols[0].image(livre["image"], width=120)
                     else:
-                        img = Image.open(livre["image"])
+                        img_path = os.path.join("data", "images", os.path.basename(livre["image"]))
+                        img = Image.open(img_path)
                         cols[0].image(img, width=120)
                 except:
                     cols[0].markdown("⚠️ Image non trouvée")
