@@ -1,100 +1,109 @@
 import streamlit as st
 import sqlite3
+import os
+from PIL import Image
 
 DB_PATH = "data/livres.db"
+COVERS_DIR = "data/covers"
 
-def get_livre_par_id(livre_id):
+def get_liste_livres():
+    conn = sqlite3.connect(DB_PATH)
+    cursor = conn.cursor()
+    cursor.execute("SELECT id, titre FROM livres ORDER BY titre")
+    result = cursor.fetchall()
+    conn.close()
+    return result
+
+def get_livre(livre_id):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT * FROM livres WHERE id = ?", (livre_id,))
     row = cursor.fetchone()
     conn.close()
-    return row
+    if row:
+        colonnes = ["id", "titre", "auteurs", "collection", "annee", "genre", "langue",
+                    "isbn", "editeur", "emplacement", "resume", "image"]
+        return dict(zip(colonnes, row))
+    return None
 
 def update_livre(livre_id, donnees):
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("""
-        UPDATE livres SET
-            titre = ?, auteurs = ?, serie = ?, annee = ?, genre = ?, langue = ?,
-            isbn = ?, editeur = ?, collection = ?, resume = ?, emplacement = ?, image = ?
+        UPDATE livres
+        SET titre = ?, auteurs = ?, collection = ?, annee = ?, genre = ?, langue = ?,
+            isbn = ?, editeur = ?, emplacement = ?, resume = ?, image = ?
         WHERE id = ?
     """, (
-        donnees["titre"], donnees["auteurs"], donnees["serie"], donnees["annee"], donnees["genre"],
-        donnees["langue"], donnees["isbn"], donnees["editeur"], donnees["collection"],
-        donnees["resume"], donnees["emplacement"], donnees["image"], livre_id
+        donnees["titre"], donnees["auteurs"], donnees["collection"], donnees["annee"],
+        donnees["genre"], donnees["langue"], donnees["isbn"], donnees["editeur"],
+        donnees["emplacement"], donnees["resume"], donnees["image"], livre_id
     ))
     conn.commit()
     conn.close()
 
-st.title("✏️ Modifier un livre")
+st.title("📝 Modifier un livre par sélection")
 
-# Vérifier qu'un livre est sélectionné
-if "livre_a_modifier" not in st.session_state:
-    st.warning("Aucun livre sélectionné pour la modification.")
-    st.stop()
+# Étape 1 : choisir le livre à modifier
+livres = get_liste_livres()
+options = {f"{titre} (ID {id})": id for id, titre in livres}
+selection = st.selectbox("📖 Choisir un livre à modifier :", list(options.keys()))
 
-livre_id = st.session_state["livre_a_modifier"]
-row = get_livre_par_id(livre_id)
+if selection:
+    livre_id = options[selection]
+    livre = get_livre(livre_id)
 
-if not row:
-    st.error("Livre introuvable.")
-    st.stop()
+    if not livre:
+        st.error("Livre introuvable.")
+        st.stop()
 
-# Colonnes de la base (ordre doit correspondre à SELECT *)
-(
-    id, titre, auteurs, serie, annee, genre, langue, isbn,
-    editeur, collection, resume, emplacement, image
-) = row
+    with st.form("modifier_livre"):
+        titre = st.text_input("Titre", value=livre["titre"])
+        auteurs = st.text_input("Auteur(s)", value=livre["auteurs"])
+        collection = st.text_input("Collection", value=livre["collection"])
+        annee = st.text_input("Année", value=livre["annee"])
+        genre = st.text_input("Genre", value=livre["genre"])
+        langue = st.text_input("Langue", value=livre["langue"])
+        isbn = st.text_input("ISBN", value=livre["isbn"])
+        editeur = st.text_input("Éditeur", value=livre["editeur"])
+        emplacement = st.text_input("Emplacement", value=livre["emplacement"])
+        resume = st.text_area("Résumé", value=livre["resume"])
 
-infos = {
-    "titre": titre,
-    "auteurs": auteurs,
-    "serie": serie,
-    "annee": annee,
-    "genre": genre,
-    "langue": langue,
-    "isbn": isbn,
-    "editeur": editeur,
-    "collection": collection,
-    "resume": resume,
-    "emplacement": emplacement,
-    "image": image
-}
+        if livre["image"]:
+            try:
+                if livre["image"].startswith("http"):
+                    st.image(livre["image"], width=150)
+                else:
+                    st.image(Image.open(livre["image"]), width=150)
+            except:
+                st.warning("Image actuelle introuvable.")
 
-# Formulaire de modification
-with st.form("form_modif"):
-    st.text_input("Titre *", value=infos["titre"], key="modif_titre")
-    st.text_input("Auteur(s)", value=infos["auteurs"], key="modif_auteurs")
-    st.text_input("Série", value=infos["serie"], key="modif_serie")
-    st.text_input("Année", value=infos["annee"], key="modif_annee")
-    st.text_input("Genre", value=infos["genre"], key="modif_genre")
-    st.text_input("Langue", value=infos["langue"], key="modif_langue")
-    st.text_input("ISBN", value=infos["isbn"], key="modif_isbn")
-    st.text_input("Éditeur", value=infos["editeur"], key="modif_editeur")
-    st.text_input("Collection", value=infos["collection"], key="modif_collection")
-    st.text_area("Résumé", value=infos["resume"], key="modif_resume")
-    st.text_input("Emplacement", value=infos["emplacement"], key="modif_emplacement")
-    st.text_input("Image (URL)", value=infos["image"], key="modif_image")
+        uploaded_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["png", "jpg", "jpeg"])
 
-    submit = st.form_submit_button("✅ Enregistrer les modifications")
+        submitted = st.form_submit_button("💾 Enregistrer les modifications")
 
-    if submit:
-        updated = {
-            "titre": st.session_state["modif_titre"],
-            "auteurs": st.session_state["modif_auteurs"],
-            "serie": st.session_state["modif_serie"],
-            "annee": st.session_state["modif_annee"],
-            "genre": st.session_state["modif_genre"],
-            "langue": st.session_state["modif_langue"],
-            "isbn": st.session_state["modif_isbn"],
-            "editeur": st.session_state["modif_editeur"],
-            "collection": st.session_state["modif_collection"],
-            "resume": st.session_state["modif_resume"],
-            "emplacement": st.session_state["modif_emplacement"],
-            "image": st.session_state["modif_image"]
+    if submitted:
+        nouvelle_image_path = livre["image"]
+
+        if uploaded_image:
+            os.makedirs(COVERS_DIR, exist_ok=True)
+            nouvelle_image_path = os.path.join(COVERS_DIR, uploaded_image.name)
+            with open(nouvelle_image_path, "wb") as f:
+                f.write(uploaded_image.getbuffer())
+
+        nouvelles_donnees = {
+            "titre": titre,
+            "auteurs": auteurs,
+            "collection": collection,
+            "annee": annee,
+            "genre": genre,
+            "langue": langue,
+            "isbn": isbn,
+            "editeur": editeur,
+            "emplacement": emplacement,
+            "resume": resume,
+            "image": nouvelle_image_path
         }
-        update_livre(livre_id, updated)
-        st.success("✅ Livre mis à jour avec succès !")
-        # Nettoyer l’ID pour éviter une nouvelle édition automatique
-        del st.session_state["livre_a_modifier"]
+
+        update_livre(livre_id, nouvelles_donnees)
+        st.success("✅ Livre mis à jour avec succès.")
