@@ -22,3 +22,5 @@ Thumbs.db
 # Environnement Python
 venv/
 .venv/
+
+.env
