@@ -14,17 +14,25 @@ def upload_image_to_bucket(file, image_name):
         return None
 
     try:
+        # Supprimer l'image existante si elle est déjà dans le bucket
+        supabase.storage.from_("livres").remove(image_name)
+
+        # Upload de l'image
         response = supabase.storage.from_("livres").upload(
             path=image_name,
             file=file,
-            file_options={"content-type": "image/jpeg"},
-            upsert=True,
+            file_options={"content-type": "image/jpeg"}
         )
-        if response.get("error"):
+
+        # Vérifier s'il y a une erreur dans la réponse
+        if isinstance(response, dict) and response.get("error"):
+            print("Erreur Supabase (upload):", response["error"])
             return None
-        
+
+        # Obtenir l’URL publique de l’image
         url = supabase.storage.from_("livres").get_public_url(image_name)
         return url
+
     except Exception as e:
         print("Erreur Supabase upload:", e)
         return None
