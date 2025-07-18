@@ -10,4 +10,4 @@ requests
 Pillow
 psycopg2-binary
 python-dotenv
-supabase-py
+requests

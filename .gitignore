@@ -1,5 +1,7 @@
 # Environnement Python
 venv/
+.venv/
+.env
 __pycache__/
 *.pyc
 
@@ -18,9 +20,3 @@ __pycache__/
 # Système
 .DS_Store
 Thumbs.db
-
-# Environnement Python
-venv/
-.venv/
-
-.env
