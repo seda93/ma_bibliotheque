@@ -1,39 +1,36 @@
 import streamlit as st
 import pandas as pd
+from sqlalchemy import text
 from backend.database import get_sqlalchemy_engine
 
 engine = get_sqlalchemy_engine()
 
-st.title("📥 Importer / Exporter la base de livres")
+st.title("📥 Importer / Exporter la base au format CSV")
 
-# Export
-if st.button("📤 Exporter au format CSV"):
-    df = pd.read_sql("SELECT * FROM livres", engine)
-    csv = df.to_csv(index=False).encode("utf-8")
-    st.download_button("📄 Télécharger CSV", data=csv, file_name="livres_export.csv", mime="text/csv")
+# ➕ Import CSV
+st.header("📁 Importer un fichier CSV")
+fichier = st.file_uploader("Sélectionner un fichier CSV", type="csv")
 
-# Import
-uploaded = st.file_uploader("📥 Importer un fichier CSV", type=["csv"])
-if uploaded:
-    new_df = pd.read_csv(uploaded)
+if fichier:
+    df = pd.read_csv(fichier)
     ajoutés, ignorés = 0, 0
-    existants = pd.read_sql("SELECT isbn FROM livres", engine)["isbn"].tolist()
-
     with engine.begin() as conn:
-        for _, row in new_df.iterrows():
-            if row["isbn"] in existants:
-                ignorés += 1
-                continue
-            try:
-                conn.execute(
-                    """
-                    INSERT INTO livres (titre, auteurs, serie, annee, genre, langue, isbn, editeur, collection, resume, emplacement, image)
-                    VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """,
-                    tuple(row.fillna("").values)
-                )
+        for _, row in df.iterrows():
+            result = conn.execute(text("SELECT COUNT(*) FROM livres WHERE isbn = :isbn"), {"isbn": row["isbn"]})
+            if result.scalar() == 0:
+                conn.execute(text("""
+                    INSERT INTO livres 
+                    (titre, auteurs, serie, annee, genre, langue, isbn, editeur, collection, emplacement, resume, image)
+                    VALUES (:titre, :auteurs, :serie, :annee, :genre, :langue, :isbn, :editeur, :collection, :emplacement, :resume, :image)
+                """), row.to_dict())
                 ajoutés += 1
-            except Exception as e:
-                st.error(f"Erreur avec le livre : {row['titre']} – {e}")
+            else:
+                ignorés += 1
+    st.success(f"✅ {ajoutés} livres ajoutés — {ignorés} ignorés (déjà présents).")
 
-    st.success(f"{ajoutés} livre(s) ajouté(s), {ignorés} ignoré(s).")
+# ⬇ Export CSV
+st.header("📤 Exporter la base actuelle")
+if st.button("📄 Télécharger la base au format CSV"):
+    with engine.connect() as conn:
+        df = pd.read_sql("SELECT * FROM livres", conn)
+        st.download_button("📥 Télécharger CSV", df.to_csv(index=False), file_name="livres.csv", mime="text/csv")
