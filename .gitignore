@@ -4,8 +4,8 @@ __pycache__/
 *.pyc
 
 # Données locales
-data/livres.db
-data/images/
+# data/livres.db
+# data/images/
 
 # Streamlit
 # .streamlit/
