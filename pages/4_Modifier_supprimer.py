@@ -67,7 +67,7 @@ selected_label = st.selectbox("Choisir un livre à modifier :", list(option_map.
 livre_id = option_map[selected_label]
 livre = get_livre_par_id(livre_id)
 
-if livre:
+if not livre.empty:
     with st.form("modifier_livre"):
         titre = st.text_input("Titre", livre["titre"])
         auteurs = st.text_input("Auteur(s)", livre["auteurs"])
