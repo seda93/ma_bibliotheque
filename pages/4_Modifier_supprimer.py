@@ -115,41 +115,40 @@ if livre:
             except Exception as e:
                 st.error(f"Erreur envoi image : {e}")
 
-        col1, col2 = st.columns(2)
-        with col1:
-            submitted = st.form_submit_button("💾 Enregistrer les modifications")
-        with col2:
-            demande_suppression = st.form_submit_button("🗑️ Supprimer ce livre")
+        submitted = st.form_submit_button("💾 Enregistrer les modifications")
 
-        if submitted:
-            update_livre(livre_id, {
-                "titre": titre,
-                "auteurs": auteurs,
-                "annee": annee,
-                "editeur": editeur,
-                "genre": genre,
-                "langue": langue,
-                "collection": collection,
-                "emplacement": emplacement,
-                "resume": resume,
-                "isbn": isbn,
-                "image": image_a_sauver,
-                "serie": serie,
-            })
-            st.success("✅ Livre modifié avec succès.")
-            st.rerun()
+    if submitted:
+        update_livre(livre_id, {
+            "titre": titre,
+            "auteurs": auteurs,
+            "annee": annee,
+            "editeur": editeur,
+            "genre": genre,
+            "langue": langue,
+            "collection": collection,
+            "emplacement": emplacement,
+            "resume": resume,
+            "isbn": isbn,
+            "image": image_a_sauver,
+            "serie": serie,
+        })
+        st.success("✅ Livre modifié avec succès.")
+        st.rerun()
 
-        if demande_suppression:
-            st.session_state.supprimer_en_cours = livre_id
-            st.warning(f"⚠️ Voulez-vous vraiment supprimer **{livre['titre']}** ?")
-            col_conf, col_annul = st.columns(2)
-            with col_conf:
-                if st.button("✅ Oui, supprimer définitivement"):
-                    supprimer_livre(livre_id)
-                    st.success("🗑️ Livre supprimé.")
-                    st.session_state.supprimer_en_cours = None
-                    st.rerun()
-            with col_annul:
-                if st.button("❌ Annuler"):
-                    st.session_state.supprimer_en_cours = None
-                    st.info("Suppression annulée.")
+    # --- Bouton Supprimer + Confirmation en dehors du form ---
+    if st.button("🗑️ Supprimer ce livre"):
+        st.session_state.supprimer_en_cours = livre_id
+
+    if st.session_state.get("supprimer_en_cours") == livre_id:
+        st.warning(f"⚠️ Voulez-vous vraiment supprimer **{livre['titre']}** ?")
+        col_conf, col_annul = st.columns(2)
+        with col_conf:
+            if st.button("✅ Oui, supprimer définitivement", key="confirm_suppression"):
+                supprimer_livre(livre_id)
+                st.success("🗑️ Livre supprimé.")
+                st.session_state.supprimer_en_cours = None
+                st.rerun()
+        with col_annul:
+            if st.button("❌ Annuler", key="cancel_suppression"):
+                st.session_state.supprimer_en_cours = None
+                st.info("Suppression annulée.")
