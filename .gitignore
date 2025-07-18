@@ -8,7 +8,7 @@ data/livres.db
 data/images/
 
 # Streamlit
-.streamlit/
+# .streamlit/
 .cache/
 
 # IDE
