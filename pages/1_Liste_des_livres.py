@@ -35,6 +35,7 @@ def supprimer_livre(livre_id):
         conn.execute(text("DELETE FROM livres WHERE id = :id"), {"id": livre_id})
 
 df_livres = charger_donnees()
+df_livres["id"] = df_livres["id"].astype(int)
 
 if df_livres.empty:
     st.info("Aucun livre trouvé dans la base de données.")
@@ -71,12 +72,12 @@ else:
                     if st.button("🗑️ Supprimer", key=f"suppr_{livre['id']}"):
                         st.session_state["livre_a_supprimer"] = livre["id"]
 
-                if st.session_state.get("livre_a_supprimer") == livre["id"]:
+                if st.session_state.get("livre_a_supprimer") == int(livre["id"]):
                     st.warning(f"⚠️ Confirmer la suppression de « {livre['titre']} » ?")
                     col_ok, col_cancel = st.columns([1, 1])
                     with col_ok:
                         if st.button("✅ Oui, supprimer", key=f"confirm_{livre['id']}"):
-                            supprimer_livre(livre["id"])
+                            supprimer_livre(int(livre["id"]))
                             st.success("Livre supprimé.")
                             del st.session_state["livre_a_supprimer"]
                             st.rerun()
