@@ -51,11 +51,11 @@ else:
                 st.markdown(f"### {livre['titre']}")
                 st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
                 st.markdown(f"**Série** : {livre['serie'] or '—'}")
+                st.markdown(f"**Genre** : {livre['genre'] or '—'}")
                 st.markdown(f"**Année** : {livre['annee'] or '—'}")
                 st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
-                st.markdown(f"**Genre** : {livre['genre'] or '—'}")
-                st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                 st.markdown(f"**Collection** : {livre['collection'] or '—'}")
+                st.markdown(f"**Langue** : {livre['langue'] or '—'}")
                 st.markdown(f"**Emplacement** : {livre['emplacement'] or '—'}")
                 if livre['resume']:
                     with st.expander("📖 Résumé"):

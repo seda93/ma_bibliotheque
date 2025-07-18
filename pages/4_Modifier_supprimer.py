@@ -53,15 +53,13 @@ with st.form("modifier_livre"):
     nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["jpg", "jpeg", "png"])
     image_url = st.text_input("ou coller une URL d’image", livre["image"])
 
+    # Partie pour gérer l'image locale
     if nouvelle_image is not None:
-        # Chemin du dossier images
+        # S'assurer que le dossier images existe
         dossier_images = os.path.join("data", "images")
+        os.makedirs(dossier_images, exist_ok=True)
 
-        # Crée le dossier 'data/images' s'il n'existe pas encore
-        if not os.path.exists(dossier_images):
-            os.makedirs(dossier_images)
-
-        # Enregistrement local
+        # Enregistrement de l'image
         chemin_image = os.path.join(dossier_images, nouvelle_image.name)
         with open(chemin_image, "wb") as f:
             f.write(nouvelle_image.read())
