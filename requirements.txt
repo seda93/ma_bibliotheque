@@ -11,4 +11,5 @@ numpy
 pandas
 requests
 urllib3
+psycopg2-binary
 # sqlite3 est inclus par défaut dans Python
