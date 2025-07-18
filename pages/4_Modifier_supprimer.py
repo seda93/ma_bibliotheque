@@ -1,109 +1,78 @@
 import streamlit as st
 import sqlite3
-import os
+import pandas as pd
 from PIL import Image
+import os
 
 DB_PATH = "data/livres.db"
-COVERS_DIR = "data/covers"
 
 def get_liste_livres():
     conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     cursor.execute("SELECT id, titre, auteurs FROM livres ORDER BY titre")
-    result = cursor.fetchall()
+    livres = cursor.fetchall()
     conn.close()
-    return result
+    return livres
 
-def get_livre(livre_id):
+def get_livre_par_id(livre_id):
     conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("SELECT * FROM livres WHERE id = ?", (livre_id,))
-    row = cursor.fetchone()
+    df = pd.read_sql_query("SELECT * FROM livres WHERE id = ?", conn, params=(livre_id,))
     conn.close()
-    if row:
-        colonnes = ["id", "titre", "auteurs", "collection", "annee", "genre", "langue",
-                    "isbn", "editeur", "emplacement", "resume", "image"]
-        return dict(zip(colonnes, row))
-    return None
+    return df.iloc[0] if not df.empty else None
 
-def update_livre(livre_id, donnees):
-    conn = sqlite3.connect(DB_PATH)
-    cursor = conn.cursor()
-    cursor.execute("""
-        UPDATE livres
-        SET titre = ?, auteurs = ?, collection = ?, annee = ?, genre = ?, langue = ?,
-            isbn = ?, editeur = ?, emplacement = ?, resume = ?, image = ?
-        WHERE id = ?
-    """, (
-        donnees["titre"], donnees["auteurs"], donnees["collection"], donnees["annee"],
-        donnees["genre"], donnees["langue"], donnees["isbn"], donnees["editeur"],
-        donnees["emplacement"], donnees["resume"], donnees["image"], livre_id
-    ))
-    conn.commit()
-    conn.close()
+st.title("📝 Modifier un livre")
 
-st.title("📝 Modifier un livre par sélection")
-
-# Étape 1 : choisir le livre à modifier
 livres = get_liste_livres()
-options = {f"{titre} – {auteurs or 'Auteur inconnu'} (ID {id})": id for id, titre, auteurs in livres}
-selection = st.selectbox("📖 Choisir un livre à modifier :", list(options.keys()))
+if not livres:
+    st.info("Aucun livre à modifier.")
+    st.stop()
 
-if selection:
-    livre_id = options[selection]
-    livre = get_livre(livre_id)
+# Création d'un dictionnaire pour relier titre-auteur à l'ID
+option_map = {f"{titre} – {auteurs or 'Auteur inconnu'}": id for id, titre, auteurs in livres}
 
-    if not livre:
-        st.error("Livre introuvable.")
-        st.stop()
+# Liste des titres pour l'affichage
+selected_label = st.selectbox("Choisir un livre à modifier :", list(option_map.keys()))
 
-    with st.form("modifier_livre"):
-        titre = st.text_input("Titre", value=livre["titre"])
-        auteurs = st.text_input("Auteur(s)", value=livre["auteurs"])
-        collection = st.text_input("Collection", value=livre["collection"])
-        annee = st.text_input("Année", value=livre["annee"])
-        genre = st.text_input("Genre", value=livre["genre"])
-        langue = st.text_input("Langue", value=livre["langue"])
-        isbn = st.text_input("ISBN", value=livre["isbn"])
-        editeur = st.text_input("Éditeur", value=livre["editeur"])
-        emplacement = st.text_input("Emplacement", value=livre["emplacement"])
-        resume = st.text_area("Résumé", value=livre["resume"])
+livre_id = option_map[selected_label]
+livre = get_livre_par_id(livre_id)
 
-        if livre["image"]:
-            try:
-                if livre["image"].startswith("http"):
-                    st.image(livre["image"], width=150)
-                else:
-                    st.image(Image.open(livre["image"]), width=150)
-            except:
-                st.warning("Image actuelle introuvable.")
+# Formulaire de modification
+with st.form("modifier_livre"):
+    titre = st.text_input("Titre", livre["titre"])
+    auteurs = st.text_input("Auteur(s)", livre["auteurs"])
+    collection = st.text_input("Collection", livre["collection"])
+    annee = st.text_input("Année", livre["annee"])
+    genre = st.text_input("Genre", livre["genre"])
+    langue = st.text_input("Langue", livre["langue"])
+    editeur = st.text_input("Éditeur", livre["editeur"])
+    emplacement = st.text_input("Emplacement", livre["emplacement"])
+    resume = st.text_area("Résumé", livre["resume"] or "")
 
-        uploaded_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["png", "jpg", "jpeg"])
+    # Image locale ou URL
+    nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (facultatif)", type=["jpg", "jpeg", "png"])
+    image_url = st.text_input("ou coller une URL d’image", livre["image"])
 
-        submitted = st.form_submit_button("💾 Enregistrer les modifications")
+    if nouvelle_image is not None:
+        # Enregistrement local
+        chemin_image = os.path.join("images", nouvelle_image.name)
+        with open(chemin_image, "wb") as f:
+            f.write(nouvelle_image.read())
+        image_a_sauver = chemin_image
+    else:
+        image_a_sauver = image_url
 
+    submitted = st.form_submit_button("✅ Enregistrer les modifications")
     if submitted:
-        nouvelle_image_path = livre["image"]
-
-        if uploaded_image:
-            os.makedirs(COVERS_DIR, exist_ok=True)
-            nouvelle_image_path = os.path.join(COVERS_DIR, uploaded_image.name)
-            with open(nouvelle_image_path, "wb") as f:
-                f.write(uploaded_image.getbuffer())
-
-        nouvelles_donnees = {
-            "titre": titre,
-            "auteurs": auteurs,
-            "collection": collection,
-            "annee": annee,
-            "genre": genre,
-            "langue": langue,
-            "isbn": isbn,
-            "editeur": editeur,
-            "emplacement": emplacement,
-            "resume": resume,
-            "image": nouvelle_image_path
-        }
-
-        update_livre(livre_id, nouvelles_donnees)
-        st.success("✅ Livre mis à jour avec succès.")
+        conn = sqlite3.connect(DB_PATH)
+        cursor = conn.cursor()
+        cursor.execute("""
+            UPDATE livres
+            SET titre=?, auteurs=?, collection=?, annee=?, genre=?, langue=?,
+                editeur=?, emplacement=?, resume=?, image=?
+            WHERE id=?
+        """, (titre, auteurs, collection, annee, genre, langue,
+              editeur, emplacement, resume, image_a_sauver, livre_id))
+        conn.commit()
+        conn.close()
+        st.success("✅ Livre modifié avec succès.")
+        st.rerun()
