@@ -1,27 +1,30 @@
 import streamlit as st
+from backend.supabase_client import upload_image_to_bucket
+from backend.database import engine
 from sqlalchemy import text
 from PIL import Image
 import os
 
-from backend.database import get_sqlalchemy_engine
-from backend.supabase_client import upload_image_to_bucket
+st.title("✏️ Modifier un livre")
 
-st.title("🛠️ Modifier ou supprimer un livre")
-
-engine = get_sqlalchemy_engine()
 
 def get_livres_options():
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT id, titre, auteurs FROM livres ORDER BY titre"))
-        return list(result.mappings().all())
+        result = conn.execute(text("SELECT id, titre, auteurs FROM livres"))
+        return [{"id": r[0], "label": f"{r[1]} – {r[2] or 'Auteur inconnu'}"} for r in result]
+
 
 def get_livre_par_id(livre_id):
     with engine.connect() as conn:
         result = conn.execute(text("SELECT * FROM livres WHERE id = :id"), {"id": livre_id})
-        return result.mappings().first()
+        row = result.fetchone()
+        if row:
+            return dict(row._mapping)
+        return None
+
 
 def update_livre(livre_id, data):
-    with engine.begin() as conn:
+    with engine.connect() as conn:
         conn.execute(text("""
             UPDATE livres SET
                 titre = :titre,
@@ -34,58 +37,60 @@ def update_livre(livre_id, data):
                 emplacement = :emplacement,
                 resume = :resume,
                 isbn = :isbn,
-                serie = :serie,
-                image = :image
+                image = :image,
+                serie = :serie
             WHERE id = :id
         """), {**data, "id": livre_id})
 
-def delete_livre(livre_id):
-    with engine.begin() as conn:
-        conn.execute(text("DELETE FROM livres WHERE id = :id"), {"id": livre_id})
 
-# Liste déroulante avec recherche
 livres = get_livres_options()
 if not livres:
     st.info("Aucun livre disponible.")
     st.stop()
 
-options = [f"{livre['titre']} ({livre['auteurs']})" for livre in livres]
-option_map = {f"{livre['titre']} ({livre['auteurs']})": livre["id"] for livre in livres}
-selected_label = st.selectbox("📚 Sélectionner un livre à modifier", options)
-livre_id = option_map[selected_label]
+selected_label = st.selectbox("Choisissez un livre à modifier :", [l["label"] for l in livres])
+livre_id = [l["id"] for l in livres if l["label"] == selected_label][0]
 livre = get_livre_par_id(livre_id)
 
 if livre:
     with st.form("modifier_livre"):
-        titre = st.text_input("Titre", livre["titre"])
-        auteurs = st.text_input("Auteur(s)", livre["auteurs"])
-        annee = st.text_input("Année", livre["annee"] or "")
-        editeur = st.text_input("Éditeur", livre["editeur"] or "")
-        genre = st.text_input("Genre", livre["genre"] or "")
-        langue = st.text_input("Langue", livre["langue"] or "")
-        collection = st.text_input("Collection", livre["collection"] or "")
-        emplacement = st.text_input("Emplacement", livre["emplacement"] or "")
-        resume = st.text_area("Résumé", livre["resume"] or "")
-        isbn = st.text_input("ISBN", livre["isbn"] or "", key="isbn_modif")
-        serie = st.text_input("Série", livre["serie"] or "")
+        titre = st.text_input("Titre", livre["titre"], key="titre")
+        auteurs = st.text_input("Auteur(s)", livre["auteurs"] or "", key="auteurs")
+        annee = st.text_input("Année", livre["annee"] or "", key="annee")
+        editeur = st.text_input("Éditeur", livre["editeur"] or "", key="editeur")
+        genre = st.text_input("Genre", livre["genre"] or "", key="genre")
+        langue = st.text_input("Langue", livre["langue"] or "", key="langue")
+        collection = st.text_input("Collection", livre["collection"] or "", key="collection")
+        emplacement = st.text_input("Emplacement", livre["emplacement"] or "", key="emplacement")
+        resume = st.text_area("Résumé", livre["resume"] or "", key="resume")
+        serie = st.text_input("Série", livre["serie"] or "", key="serie")
+        isbn = st.text_input("ISBN", livre["isbn"] or "", key="isbn")
 
-        # Afficher image actuelle
+        # Afficher l’image actuelle
         st.markdown("**Image actuelle :**")
         if livre["image"]:
-            st.image(livre["image"], width=150)
+            try:
+                if livre["image"].startswith("http"):
+                    st.image(livre["image"], width=150)
+                else:
+                    with open(livre["image"], "rb") as img_file:
+                        st.image(img_file.read(), width=150)
+            except FileNotFoundError:
+                st.warning("📁 Image introuvable sur le serveur.")
 
-        nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture (optionnel)", type=["jpg", "jpeg", "png"])
+        nouvelle_image = st.file_uploader("📷 Nouvelle image de couverture", type=["jpg", "jpeg", "png"])
         image_a_sauver = livre["image"]
 
-        if nouvelle_image is not None:
+        if nouvelle_image:
             uploaded_url = upload_image_to_bucket(nouvelle_image, nouvelle_image.name)
             if uploaded_url:
                 image_a_sauver = uploaded_url
             else:
                 st.error("❌ L’image n’a pas pu être envoyée.")
+                image_a_sauver = livre["image"]
 
-        submit = st.form_submit_button("💾 Enregistrer les modifications")
-        if submit:
+        submitted = st.form_submit_button("💾 Enregistrer les modifications")
+        if submitted:
             update_livre(livre_id, {
                 "titre": titre,
                 "auteurs": auteurs,
@@ -97,15 +102,8 @@ if livre:
                 "emplacement": emplacement,
                 "resume": resume,
                 "isbn": isbn,
+                "image": image_a_sauver,
                 "serie": serie,
-                "image": image_a_sauver
             })
-            st.success("✅ Livre mis à jour avec succès.")
-
-# Suppression
-st.markdown("---")
-st.warning("⚠️ Cette action supprimera le livre définitivement.")
-if st.button("🗑️ Supprimer ce livre"):
-    delete_livre(livre_id)
-    st.success("✅ Livre supprimé.")
-    st.rerun()
+            st.success("✅ Livre modifié avec succès.")
+            st.rerun()
