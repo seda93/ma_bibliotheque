@@ -21,22 +21,29 @@ def upload_image_to_bucket(file, image_name):
         except Exception as e:
             print("Aucune image à supprimer ou erreur ignorée :", e)
 
-        # Upload image
+        # Upload de l’image
         response = supabase.storage.from_("livres").upload(
             path=image_name,
             file=file,
             file_options={"content-type": "image/jpeg"}
         )
 
-        if isinstance(response, dict) and response.get("error"):
-            st.error(f"❌ Erreur Supabase (upload): {response['error']}")
+        if hasattr(response, "error") and response.error is not None:
+            st.error(f"❌ Erreur Supabase (upload): {response.error.message}")
             return None
 
         # Obtenir l’URL publique de l’image
-        public_url = supabase.storage.from_("livres").get_public_url(image_name)
-        if hasattr(public_url, 'get'):
-            return public_url.get('publicURL')
-        return public_url  # au cas où c’est une string directement
+        public_url_response = supabase.storage.from_("livres").get_public_url(image_name)
+
+        if hasattr(public_url_response, 'public_url'):
+            return public_url_response.public_url
+        elif isinstance(public_url_response, dict) and "publicURL" in public_url_response:
+            return public_url_response["publicURL"]
+        elif isinstance(public_url_response, str):
+            return public_url_response
+        else:
+            st.error("❌ Erreur : URL publique non récupérée.")
+            return None
 
     except Exception as e:
         st.error(f"❌ Erreur Supabase upload : {e}")
