@@ -1,16 +1,13 @@
-Pillow
-certifi
-charset-normalizer
-geopandas
-idna
-matplotlib-inline
-matplotlib-venn
-matplotlib
-numpy-financial
-numpy
+streamlit
 pandas
+numpy
+matplotlib
+matplotlib-venn
+matplotlib-inline
+numpy-financial
+geopandas
 requests
-urllib3
+Pillow
 psycopg2-binary
 python-dotenv
-# sqlite3 est inclus par défaut dans Python
+supabase-py
