@@ -64,28 +64,31 @@ with st.form("form_ajout"):
     submitted = st.form_submit_button("💾 Ajouter le livre")
 
     if submitted:
-        try:
-            with engine.connect() as conn:
-                conn.execute(text("""
-                    INSERT INTO livres 
-                    (titre, auteurs, annee, editeur, genre, langue, collection, emplacement, resume, isbn, image, serie)
-                    VALUES 
-                    (:titre, :auteurs, :annee, :editeur, :genre, :langue, :collection, :emplacement, :resume, :isbn, :image, :serie)
-                """), {
-                    "titre": titre or None,
-                    "auteurs": auteurs or None,
-                    "annee": annee or None,
-                    "editeur": editeur or None,
-                    "genre": genre or None,
-                    "langue": langue or None,
-                    "collection": collection or None,
-                    "emplacement": emplacement or None,
-                    "resume": resume or None,
-                    "isbn": isbn_final or None,
-                    "image": image_url or None,
-                    "serie": serie or None,
-                })
-            st.success("📚 Livre ajouté avec succès !")
-            st.rerun()
-        except Exception as e:
-            st.error(f"❌ Erreur lors de l’ajout : {e}")
+            if not titre or not auteurs or not isbn_final:
+                st.error("❌ Les champs Titre, Auteur(s) et ISBN sont obligatoires.")
+            else:
+                try:
+                    with engine.connect() as conn:
+                        conn.execute(text("""
+                            INSERT INTO livres 
+                            (titre, auteurs, annee, editeur, genre, langue, collection, emplacement, resume, isbn, image, serie)
+                            VALUES 
+                            (:titre, :auteurs, :annee, :editeur, :genre, :langue, :collection, :emplacement, :resume, :isbn, :image, :serie)
+                        """), {
+                            "titre": titre,
+                            "auteurs": auteurs,
+                            "annee": annee or None,
+                            "editeur": editeur or None,
+                            "genre": genre or None,
+                            "langue": langue or None,
+                            "collection": collection or None,
+                            "emplacement": emplacement or None,
+                            "resume": resume or None,
+                            "isbn": isbn_final,
+                            "image": image_url or None,
+                            "serie": serie or None,
+                        })
+                    st.success("📚 Livre ajouté avec succès !")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Erreur lors de l’ajout : {e}")
