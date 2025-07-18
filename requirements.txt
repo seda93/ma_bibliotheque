@@ -12,4 +12,5 @@ pandas
 requests
 urllib3
 psycopg2-binary
+python-dotenv
 # sqlite3 est inclus par défaut dans Python
