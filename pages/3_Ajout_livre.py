@@ -28,8 +28,6 @@ IMG_DIR = "data/images"
 st.title("➕ Ajouter un livre")
 
 engine = get_sqlalchemy_engine()
-
-# Créer dossier image si absent
 os.makedirs(IMG_DIR, exist_ok=True)
 
 with st.form("ajout_form"):
@@ -64,11 +62,17 @@ with st.form("ajout_form"):
             st.error("Le titre est obligatoire.")
         else:
             image_path_or_url = image_url
-
             if image:
-                image_bytes = image.read()
-                image_path_or_url = upload_image_to_bucket(image.name, image_bytes)
-                st.success("Image envoyée dans Supabase Storage.")
+                try:
+                    image_bytes = image.read()
+                    uploaded_url = upload_image_to_bucket(image_bytes, image.name)
+                    if uploaded_url:
+                        image_path_or_url = uploaded_url
+                        st.success("✅ Image envoyée dans Supabase Storage.")
+                    else:
+                        st.warning("⚠️ L'image n'a pas pu être uploadée.")
+                except Exception as e:
+                    st.error(f"Erreur d’envoi image : {e}")
 
             insert_sql = """
                 INSERT INTO livres (titre, auteurs, serie, annee, genre, langue, isbn, editeur, collection, resume, emplacement, image)

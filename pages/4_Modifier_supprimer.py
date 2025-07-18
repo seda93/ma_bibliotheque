@@ -31,15 +31,11 @@ def get_livres_options():
         result = conn.execute(text("SELECT id, titre, auteurs FROM livres"))
         return [{"id": r[0], "label": f"{r[1]} – {r[2] or 'Auteur inconnu'}"} for r in result]
 
-
 def get_livre_par_id(livre_id):
     with engine.connect() as conn:
         result = conn.execute(text("SELECT * FROM livres WHERE id = :id"), {"id": livre_id})
         row = result.fetchone()
-        if row:
-            return dict(row._mapping)
-        return None
-
+        return dict(row._mapping) if row else None
 
 def update_livre(livre_id, data):
     with engine.connect() as conn:
@@ -59,7 +55,6 @@ def update_livre(livre_id, data):
                 serie = :serie
             WHERE id = :id
         """), {**data, "id": livre_id})
-
 
 livres = get_livres_options()
 if not livres:
@@ -84,7 +79,6 @@ if livre:
         serie = st.text_input("Série", livre["serie"] or "", key="serie")
         isbn = st.text_input("ISBN", livre["isbn"] or "", key="isbn")
 
-        # Afficher l’image actuelle
         st.markdown("**Image actuelle :**")
         if livre["image"]:
             try:
@@ -100,12 +94,16 @@ if livre:
         image_a_sauver = livre["image"]
 
         if nouvelle_image:
-            uploaded_url = upload_image_to_bucket(nouvelle_image, nouvelle_image.name)
-            if uploaded_url:
-                image_a_sauver = uploaded_url
-            else:
-                st.error("❌ L’image n’a pas pu être envoyée.")
-                image_a_sauver = livre["image"]
+            try:
+                image_bytes = nouvelle_image.read()
+                uploaded_url = upload_image_to_bucket(image_bytes, nouvelle_image.name)
+                if uploaded_url:
+                    image_a_sauver = uploaded_url
+                    st.success("✅ Image mise à jour sur Supabase.")
+                else:
+                    st.error("❌ L’image n’a pas pu être envoyée.")
+            except Exception as e:
+                st.error(f"Erreur envoi image : {e}")
 
         submitted = st.form_submit_button("💾 Enregistrer les modifications")
         if submitted:

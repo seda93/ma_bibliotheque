@@ -6,3 +6,4 @@ with open("data/images/grimm.jpg", "rb") as f:
         print("✅ Upload réussi :", image_url)
     else:
         print("❌ Échec de l’envoi.")
+    
