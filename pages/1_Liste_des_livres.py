@@ -29,7 +29,7 @@ df_livres = charger_donnees()
 if df_livres.empty:
     st.info("Aucun livre trouvé dans la base de données.")
 else:
-    colonnes_triables = ["titre", "auteurs", "genre", "langue", "annee"]
+    colonnes_triables = ["titre", "auteurs", "serie", "genre", "langue", "annee"]
     tri = st.selectbox("Trier par :", colonnes_triables)
     ordre = st.radio("Ordre :", ["Croissant", "Décroissant"], horizontal=True)
     df_livres_sorted = df_livres.sort_values(by=tri, ascending=(ordre == "Croissant"))
@@ -49,6 +49,7 @@ else:
             with cols[1]:
                 st.markdown(f"### {livre['titre']}")
                 st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
+                st.markdown(f"**Série** : {livre['serie'] or '—'}")
                 st.markdown(f"**Année** : {livre['annee'] or '—'}")
                 st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
                 st.markdown(f"**Genre** : {livre['genre'] or '—'}")

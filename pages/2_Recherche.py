@@ -29,6 +29,7 @@ def afficher_livre(livre):
         with cols[1]:
             st.markdown(f"### {livre['titre']}")
             st.markdown(f"**Auteur(s)** : {livre['auteurs'] or 'Inconnu'}")
+            st.markdown(f"**Série** : {livre['serie'] or '—'}")
             st.markdown(f"**Année** : {livre['annee'] or '—'}")
             st.markdown(f"**Éditeur** : {livre['editeur'] or '—'}")
             st.markdown(f"**Genre** : {livre['genre'] or '—'}")

@@ -40,6 +40,7 @@ livre = get_livre_par_id(livre_id)
 with st.form("modifier_livre"):
     titre = st.text_input("Titre", livre["titre"])
     auteurs = st.text_input("Auteur(s)", livre["auteurs"])
+    serie = st.text_input("Série", livre["serie"])
     collection = st.text_input("Collection", livre["collection"])
     annee = st.text_input("Année", livre["annee"])
     genre = st.text_input("Genre", livre["genre"])
@@ -67,10 +68,10 @@ with st.form("modifier_livre"):
         cursor = conn.cursor()
         cursor.execute("""
             UPDATE livres
-            SET titre=?, auteurs=?, collection=?, annee=?, genre=?, langue=?,
+            SET titre=?, auteurs=?, serie=?, collection=?, annee=?, genre=?, langue=?,
                 editeur=?, emplacement=?, resume=?, image=?
             WHERE id=?
-        """, (titre, auteurs, collection, annee, genre, langue,
+        """, (titre, auteurs, serie, collection, annee, genre, langue,
               editeur, emplacement, resume, image_a_sauver, livre_id))
         conn.commit()
         conn.close()
